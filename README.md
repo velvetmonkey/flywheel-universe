@@ -61,7 +61,7 @@ python kuramoto_ring.py
 
 ## Related
 
-- Witness theory: [zenodo.org/records/20179566](https://zenodo.org/records/20179566)
+- universe feature/bug task: [zenodo.org/records/20179566](https://zenodo.org/records/20179566)
 - Dula's OPH toroidal emulator: `codepen.io/DULA2025/pen/LERMgxv`
 
 ## Source

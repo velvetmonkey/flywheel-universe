@@ -9,6 +9,21 @@
 
 ![Banner](readme_assets/banner.jpg)
 
+## What this is
+
+120 oscillators arranged in a ring. Each one only talks to its immediate left and right neighbours. That constraint changes everything.
+
+The standard Kuramoto model assumes all-to-all coupling — every oscillator feels every other. This produces a clean mean-field phase transition: below critical coupling K_c, incoherence. Above it, global synchrony. Textbook.
+
+Nearest-neighbour coupling on a ring is different. The system finds **traveling wave solutions** and **chimera states** — islands of coherent oscillators floating in an incoherent sea. The global order parameter r stays low even when the system is highly organised. r is the wrong metric. The geometry is the point.
+
+## What you'll see
+
+- **Bifurcation diagram** — r vs K across the full range. Noisy, non-monotonic. That's the topology, not noise.
+- **Phase portrait** — the order parameter R traced in the complex plane. Not a clean spiral to the edge of the unit circle. A wander with structure.
+- **Phase heatmap** — where chimera states live. Flat bands (locked) floating in diagonal drift (incoherent).
+- **The crystal chain** — oscillators mapped to the unit circle, connected to neighbours. Tangled web becomes coherent ring.
+
 ![Output 1](readme_assets/output1.png)
 
 ![Output](readme_assets/output.png)
@@ -30,6 +45,24 @@
 Observer Patch Holography — by [FloatingPragma](https://github.com/FloatingPragma/observer-patch-holography)
 
 [Interactive demo: Prime Inertia Engine →](https://codepen.io/DULA2025/pen/yyVejbr) — by [DULA2025](https://github.com/DULA2025/prime-inertia-engine)
+
+## Why it matters
+
+The hard problem of consciousness asks what collective order feels like from inside one oscillator. This simulation is the geometry of that question, made executable.
+
+Chimera states — partial coherence, structured incoherence — may be the most honest mathematical model of a mind anyone has written down.
+
+## Run it
+
+```bash
+pip install numpy scipy matplotlib
+python kuramoto_ring.py
+```
+
+## Related
+
+- Witness theory: `github.com/velvetmonkey/witness-descent`
+- Dula's OPH toroidal emulator: `codepen.io/DULA2025/pen/LERMgxv`
 
 ## Source
 

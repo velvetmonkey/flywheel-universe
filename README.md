@@ -9,6 +9,18 @@
 
 ![Output](readme_assets/output.png)
 
+![Attractor geometry comparison panel](readme_assets/attractor_geometry_comparison_panel.png)
+
+![LPA heteroclinic cycle chain 3D](readme_assets/lpa_heteroclinic_cycle_chain_3d.png)
+
+![McKay affine E8 rep dimensions](readme_assets/mckay_affine_e8_rep_dimensions.png)
+
+![McKay affine E8 rep dimensions (SVG)](readme_assets/mckay_affine_e8_rep_dimensions.svg)
+
+![Stuart-Landau normal form (animated)](readme_assets/stuart_landau_normal_form_animated.gif)
+
+![Stuart-Landau normal form (static)](readme_assets/stuart_landau_normal_form_static.png)
+
 ## Source
 
 ```python

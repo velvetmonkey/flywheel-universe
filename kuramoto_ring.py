@@ -65,9 +65,9 @@ plt.tight_layout()
 plt.show()
 
 # ------------------------------------------------
-# 2. Detailed simulation at supercritical K (harmony!)
+# 2. Simulation at K = 2.5 — chimera / twisted regime
 # ------------------------------------------------
-K_super = 2.5   # Well above critical coupling → strong synchronization
+K_super = 2.5   # Intermediate coupling — chimera states and twisted attractors live here
 
 theta0 = np.random.uniform(0, 2*np.pi, N)
 sol = solve_ivp(kuramoto, t_span, theta0, args=(omega, K_super, N),
@@ -99,7 +99,7 @@ plt.figure(figsize=(8, 4))
 plt.plot(t_plot, r_time, linewidth=2.5)
 plt.xlabel('Time')
 plt.ylabel('Order parameter r(t)')
-plt.title(f'Time evolution of synchronization (K = {K_super})')
+plt.title(f'Time evolution of order parameter r(t)  (K = {K_super})')
 plt.grid(True, alpha=0.5)
 plt.ylim(0, 1.05)
 plt.tight_layout()
@@ -110,7 +110,7 @@ plt.show()
 plt.figure(figsize=(7, 7))
 plt.plot(R_real, R_imag, 'b-', linewidth=1.8, alpha=0.85, label='Trajectory')
 plt.plot(R_real[0], R_imag[0], 'go', markersize=8, label='Initial (incoherent)')
-plt.plot(R_real[-1], R_imag[-1], 'ro', markersize=8, label='Final (synchronized attractor)')
+plt.plot(R_real[-1], R_imag[-1], 'ro', markersize=8, label='Final (chimera/twisted state)')
 plt.xlabel('Re(R)')
 plt.ylabel('Im(R)')
 plt.title('Phase Portrait of the Order Parameter\nQuasi-periodic orbit — not a spiral to sync')
@@ -129,7 +129,7 @@ plt.pcolormesh(t_plot, np.arange(N), phases_wrapped, cmap='twilight_shifted', sh
 plt.colorbar(label='Phase θ_i (mod 2π)')
 plt.xlabel('Time')
 plt.ylabel('Oscillator index i (along the ring)')
-plt.title('Phase Evolution on the Ring\n(Random → Coherent synchronization)')
+plt.title('Phase Evolution on the Ring\n(Random → chimera bands floating in drift)')
 plt.tight_layout()
 plt.show()
 
@@ -158,4 +158,4 @@ plt.suptitle('Oscillators on a Ring — winding number selection and chimera sta
 plt.tight_layout()
 plt.show()
 
-print("\nSimulation complete. The complex-plane spiral and the phase heatmap/ring plots best evoke the 'portal / vortex / harmony threshold' geometry from the image.")
+print("\nSimulation complete. Phase heatmap + ring plot show the chimera/twisted geometry; r alone does not.")

@@ -23,6 +23,8 @@
 
 ![Oph](readme_assets/oph.png)
 
+Observer Patch Holography — by [FloatingPragma](https://github.com/FloatingPragma/observer-patch-holography)
+
 [Interactive demo: Prime Inertia Engine →](https://codepen.io/DULA2025/pen/yyVejbr) — by [DULA2025](https://github.com/DULA2025/prime-inertia-engine)
 
 ## Source

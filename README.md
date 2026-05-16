@@ -32,6 +32,16 @@ The standard Kuramoto model assumes all-to-all coupling — every oscillator fee
 - **Complex-plane portrait** — z(t) traces a quasi-periodic orbit near the origin. Not a spiral to the unit circle.
 - **The crystal chain** — oscillators on the unit circle connected to neighbours. Twisted states show as smooth colour gradients winding around the ring.
 
+![Phase portrait](readme_assets/03_phase_portrait.png)
+
+![Phase heatmap](readme_assets/04_phase_heatmap.png)
+
+![K-sweep rings — twisted states at increasing K](readme_assets/06_K_sweep_rings.png)
+
+![Local order parameter — chimera islands hidden by global r](readme_assets/07_local_order.png)
+
+![r(t) traces across K](readme_assets/08_rg_traces.png)
+
 ![Output 1](readme_assets/output1.png)
 
 ![Output](readme_assets/output.png)

@@ -5,7 +5,7 @@
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/velvetmonkey/flywheel-universe/blob/main/kuramoto_ring.ipynb)
 
-> All code below was reverse-engineered from this image.
+> Inspired by this image, which suggested the topology — the math wasn't in the picture, the picture suggested which math.
 
 ![Banner](readme_assets/banner.jpg)
 
@@ -60,10 +60,6 @@ The standard Kuramoto model assumes all-to-all coupling — every oscillator fee
 
 ![Oph](readme_assets/oph.png)
 
-Observer Patch Holography — by [FloatingPragma](https://github.com/FloatingPragma/observer-patch-holography)
-
-[Interactive demo: Prime Inertia Engine →](https://codepen.io/DULA2025/pen/yyVejbr) — by [DULA2025](https://github.com/DULA2025/prime-inertia-engine)
-
 ## Why it matters
 
 Chimera states — partial coherence, structured incoherence, winding-number selection — are well-studied (Kuramoto-Battogtokh 2002, Abrams-Strogatz 2004) and have speculative links to neural dynamics. This repo makes them executable and visible. The connection to consciousness is a direction, not yet a result.
@@ -77,8 +73,18 @@ python kuramoto_ring.py
 
 ## Related
 
-- universe feature/bug task: [zenodo.org/records/20179566](https://zenodo.org/records/20179566)
-- Dula's OPH toroidal emulator: [codepen.io/DULA2025/pen/LERMgxv](https://codepen.io/DULA2025/pen/LERMgxv)
+**Own work:**
+
+- Universe feature/bug task: [zenodo.org/records/20179566](https://zenodo.org/records/20179566)
+
+**Potential collaborators — independent work, listed for context, not endorsement:**
+
+- FloatingPragma — observer-patch holography (theory): [github.com/FloatingPragma/observer-patch-holography](https://github.com/FloatingPragma/observer-patch-holography)
+- Dula (DULA2025) — OPH toroidal emulator (visualization): [codepen.io/DULA2025/pen/LERMgxv](https://codepen.io/DULA2025/pen/LERMgxv)
+- Dula (DULA2025) — Prime Inertia Engine: [codepen.io/DULA2025/pen/yyVejbr](https://codepen.io/DULA2025/pen/yyVejbr) · [github.com/DULA2025/prime-inertia-engine](https://github.com/DULA2025/prime-inertia-engine)
+- dmytronic — preprint *Logic Instantiated in Time is Ontically Experienced*: [zenodo.org/records/20233225](https://zenodo.org/records/20233225)
+
+*These are researchers whose work intersects thematically. Inclusion is for context, not endorsement; connections are speculative and the work is unverified by this author.*
 
 ## Source
 

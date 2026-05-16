@@ -21,6 +21,8 @@
 
 ![Stuart-Landau normal form (static)](readme_assets/stuart_landau_normal_form_static.png)
 
+[Interactive demo: Prime Inertia Engine →](https://codepen.io/DULA2025/pen/yyVejbr) — by [DULA2025](https://github.com/DULA2025/prime-inertia-engine)
+
 ## Source
 
 ```python

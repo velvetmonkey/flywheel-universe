@@ -11,18 +11,26 @@
 
 ## What this is
 
-120 oscillators arranged in a ring. Each one only talks to its immediate left and right neighbours. That constraint changes everything.
+120 oscillators arranged in a ring. Each one only talks to its immediate left and right neighbours. That single constraint changes the physics completely.
 
-The standard Kuramoto model assumes all-to-all coupling — every oscillator feels every other. This produces a clean mean-field phase transition: below critical coupling K_c, incoherence. Above it, global synchrony. Textbook.
+The standard Kuramoto model assumes all-to-all coupling — every oscillator feels every other. This produces a clean mean-field phase transition with a well-defined critical K_c. Nearest-neighbour coupling on a ring is different. There is no such transition. The system selects a **winding number** based on initial conditions and locks there permanently.
 
-Nearest-neighbour coupling on a ring is different. The system finds **traveling wave solutions** and **chimera states** — islands of coherent oscillators floating in an incoherent sea. The global order parameter r stays low even when the system is highly organised. r is the wrong metric. The geometry is the point.
+## What actually happens
 
-## What you'll see
+**Winding number selection.** At any K, the ring settles into a twisted state where phases advance uniformly around the circle q times: θ_i ≈ 2πqi/N. These states have winding number q = 0, ±1, ±2... and are stable fixed points in a rotating frame. Because the phases are spread evenly around the circle by construction, the global order parameter r stays low — not because the system failed to synchronise, but because it found a different kind of order entirely.
 
-- **Bifurcation diagram** — r vs K across the full range. Noisy, non-monotonic. That's the topology, not noise.
-- **Phase portrait** — the order parameter R traced in the complex plane. Not a clean spiral to the edge of the unit circle. A wander with structure.
-- **Phase heatmap** — where chimera states live. Flat bands (locked) floating in diagonal drift (incoherent).
-- **The crystal chain** — oscillators mapped to the unit circle, connected to neighbours. Tangled web becomes coherent ring.
+**r is the wrong metric — for a topological reason.** r measures global phase alignment. Twisted states have zero global alignment by design. The right question is which winding number was selected, and why.
+
+**Chimera states.** At intermediate K, a local order parameter (averaged over a neighbourhood of oscillators) reveals coherent islands — r_local up to ~0.85 in a cluster — floating in an otherwise incoherent ring. The global r (~0.1) hides this completely. The phase heatmap shows it as flat locked bands drifting in a sea of diagonal incoherence.
+
+**Mean-field intuitions fail here.** K_c ≈ 1.2 is the mean-field result and does not apply. Each oscillator talks to 2 out of 119 others. Global sync on a 1D ring would require K ~ O(N), and even then the system may prefer a twisted state.
+
+## Visualisations
+
+- **Bifurcation diagram** — r vs K. No transition. Noise in the 0.05–0.30 band. The story is in the winding number, not r.
+- **Phase heatmap** — chimera states visible as locked horizontal bands in drifting incoherence.
+- **Complex-plane portrait** — z(t) traces a quasi-periodic orbit near the origin. Not a spiral to the unit circle.
+- **The crystal chain** — oscillators on the unit circle connected to neighbours. Twisted states show as smooth colour gradients winding around the ring.
 
 ![Output 1](readme_assets/output1.png)
 
@@ -48,9 +56,7 @@ Observer Patch Holography — by [FloatingPragma](https://github.com/FloatingPra
 
 ## Why it matters
 
-The hard problem of consciousness asks what collective order feels like from inside one oscillator. This simulation is the geometry of that question, made executable.
-
-Chimera states — partial coherence, structured incoherence — may be the most honest mathematical model of a mind anyone has written down.
+Chimera states — partial coherence, structured incoherence, winding-number selection — are well-studied (Kuramoto-Battogtokh 2002, Abrams-Strogatz 2004) and have speculative links to neural dynamics. This repo makes them executable and visible. The connection to consciousness is a direction, not yet a result.
 
 ## Run it
 

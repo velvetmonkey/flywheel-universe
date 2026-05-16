@@ -3,6 +3,10 @@
 > embrace the cycles.
 > become the chain.
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/velvetmonkey/flywheel-universe/blob/main/kuramoto_ring.ipynb)
+
+> All code below was reverse-engineered from this image.
+
 ![Banner](readme_assets/banner.jpg)
 
 ![Output 1](readme_assets/output1.png)

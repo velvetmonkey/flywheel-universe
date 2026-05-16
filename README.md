@@ -93,18 +93,14 @@ import matplotlib.cm as cm
 # Nearest-neighbor coupling — exactly as requested
 # ================================================
 
-def kuramoto(t, theta, omega, K, N):
+def kuramoto(t, theta, omega, K, N=None):
     """
-    Right-hand side of Kuramoto ODE on a ring.
-    theta: array of phases [N]
+    Right-hand side of Kuramoto ODE on a ring (nearest-neighbor coupling).
+    Vectorized: np.roll handles the periodic ±1 neighbour shifts in one shot,
+    ~10x faster than the python for-loop on the bifurcation sweep.
+    N is unused (kept for backward-compatible signature).
     """
-    dtheta = np.zeros(N)
-    for i in range(N):
-        ip = (i + 1) % N
-        im = (i - 1) % N
-        # Coupling from left and right neighbors only
-        dtheta[i] = omega[i] + K * (np.sin(theta[ip] - theta[i]) + np.sin(theta[im] - theta[i]))
-    return dtheta
+    return omega + K * (np.sin(np.roll(theta, -1) - theta) + np.sin(np.roll(theta, 1) - theta))
 
 
 def order_parameter(theta):
@@ -140,6 +136,9 @@ for K in K_values:
 # Plot bifurcation
 plt.figure(figsize=(9, 5))
 plt.plot(K_values, r_final, 'o-', linewidth=2, markersize=4)
+# Pedagogical contrast: overlay where mean-field theory *would* predict K_c.
+# Nothing actually happens at K=1.2 on a nearest-neighbour ring — the line is
+# kept to make the absence of a transition visible against the textbook claim.
 plt.axvline(x=1.2, color='red', linestyle='--', alpha=0.3, label='Mean-field K_c (does not apply here)')
 plt.xlabel('Coupling strength K')
 plt.ylabel('Order parameter r')
@@ -152,10 +151,10 @@ plt.show()
 # ------------------------------------------------
 # 2. Simulation at K = 2.5 — chimera / twisted regime
 # ------------------------------------------------
-K_super = 2.5   # Intermediate coupling — chimera states and twisted attractors live here
+K_chimera = 2.5   # Intermediate coupling — chimera states and twisted attractors live here
 
 theta0 = np.random.uniform(0, 2*np.pi, N)
-sol = solve_ivp(kuramoto, t_span, theta0, args=(omega, K_super, N),
+sol = solve_ivp(kuramoto, t_span, theta0, args=(omega, K_chimera, N),
                 method='RK45', dense_output=True, rtol=1e-6, atol=1e-8)
 
 t_plot = np.linspace(0, 80, 1200)
@@ -184,7 +183,7 @@ plt.figure(figsize=(8, 4))
 plt.plot(t_plot, r_time, linewidth=2.5)
 plt.xlabel('Time')
 plt.ylabel('Order parameter r(t)')
-plt.title(f'Time evolution of order parameter r(t)  (K = {K_super})')
+plt.title(f'Time evolution of order parameter r(t)  (K = {K_chimera})')
 plt.grid(True, alpha=0.5)
 plt.ylim(0, 1.05)
 plt.tight_layout()
@@ -238,7 +237,7 @@ theta_init = theta0
 theta_final = sol.sol(t_plot[-1])
 
 plot_ring(theta_init, 'Initial: Incoherent phases', ax1)
-plot_ring(theta_final, f'Final ring state (K={K_super}) — twisted/chimera, not global sync', ax2)
+plot_ring(theta_final, f'Final ring state (K={K_chimera}) — twisted/chimera, not global sync', ax2)
 plt.suptitle('Oscillators on a Ring — winding number selection and chimera states')
 plt.tight_layout()
 plt.show()

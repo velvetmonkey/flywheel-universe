@@ -62,7 +62,7 @@ python kuramoto_ring.py
 ## Related
 
 - universe feature/bug task: [zenodo.org/records/20179566](https://zenodo.org/records/20179566)
-- Dula's OPH toroidal emulator: `codepen.io/DULA2025/pen/LERMgxv`
+- Dula's OPH toroidal emulator: [codepen.io/DULA2025/pen/LERMgxv](https://codepen.io/DULA2025/pen/LERMgxv)
 
 ## Source
 

@@ -140,7 +140,7 @@ for K in K_values:
 # Plot bifurcation
 plt.figure(figsize=(9, 5))
 plt.plot(K_values, r_final, 'o-', linewidth=2, markersize=4)
-plt.axvline(x=1.2, color='red', linestyle='--', alpha=0.6, label='Approximate critical K_c')
+plt.axvline(x=1.2, color='red', linestyle='--', alpha=0.3, label='Mean-field K_c (does not apply here)')
 plt.xlabel('Coupling strength K')
 plt.ylabel('Order parameter r')
 plt.title('Bifurcation Diagram — Kuramoto Oscillators on a Ring')
@@ -198,7 +198,7 @@ plt.plot(R_real[0], R_imag[0], 'go', markersize=8, label='Initial (incoherent)')
 plt.plot(R_real[-1], R_imag[-1], 'ro', markersize=8, label='Final (synchronized attractor)')
 plt.xlabel('Re(R)')
 plt.ylabel('Im(R)')
-plt.title('Phase Portrait of the Order Parameter\nSpiraling into the synchronized attractor')
+plt.title('Phase Portrait of the Order Parameter\nQuasi-periodic orbit — not a spiral to sync')
 plt.axis('equal')
 plt.grid(True, alpha=0.4)
 plt.legend()
@@ -238,8 +238,8 @@ theta_init = theta0
 theta_final = sol.sol(t_plot[-1])
 
 plot_ring(theta_init, 'Initial: Incoherent phases', ax1)
-plot_ring(theta_final, f'Final: Synchronized (K={K_super}) — "Become the Chain"', ax2)
-plt.suptitle('Oscillators on a Ring — "Embrace the Cycles, Become the Chain"')
+plot_ring(theta_final, f'Final ring state (K={K_super}) — twisted/chimera, not global sync', ax2)
+plt.suptitle('Oscillators on a Ring — winding number selection and chimera states')
 plt.tight_layout()
 plt.show()
 

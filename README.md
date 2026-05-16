@@ -1,6 +1,6 @@
 # Flywheel Universe
 
-![Banner](readme_assets/banner.png)
+![Banner](readme_assets/banner.jpg)
 
 ![Output 1](readme_assets/output1.png)
 

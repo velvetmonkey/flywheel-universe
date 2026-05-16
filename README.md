@@ -1,5 +1,8 @@
 # Flywheel Universe
 
+> embrace the cycles.
+> become the chain.
+
 ![Banner](readme_assets/banner.jpg)
 
 ![Output 1](readme_assets/output1.png)

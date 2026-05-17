@@ -70,13 +70,13 @@ The standard Kuramoto model assumes all-to-all coupling — every oscillator fee
 
 *Meteorology — Gaussian ω control. Tests whether the lock/drift coarsening pattern is generic or structure-dependent; even with unstructured natural frequencies, persistent locked and drifting bands form.*
 
-![Universe — initial network with lock/drift boundary; weight and degree distributions at t=50 and t=100](readme_assets/dl_02.png)
+![Meteorology — unconstrained Hebbian: network at t=0 with lock/drift boundary, then weight histograms at t=50 and t=100 showing graph fully densified to 100% pairs active](readme_assets/dl_02.png)
 
-*Universe — initial state and early-time weight evolution. Coupling weights concentrate sharply (top histograms) as the plastic network rewires; the degree distribution collapses from a wide spread (t=0) toward a sharp peak (t=50, 100).*
+*Meteorology — unconstrained Hebbian (cell 4). Without a conservation law the Hebbian rule densifies the graph completely: by t=50, 100% of pairs are active. No preferential attachment, no scale-free structure. The negative result is the result.*
 
-![Universe — conserved network panels at t=0, 50, 100 with matching degree distributions; cyan nodes are lock/drift boundary cells](readme_assets/dl_03.png)
+![Meteorology — conserved Hebbian: network snapshots at t=0, 50, 100 with cyan lock/drift boundary nodes and degree distributions](readme_assets/dl_03.png)
 
-*Universe — topology preserved through evolution. Cyan nodes mark the lock/drift boundary; the bulk converges while a small ring of boundary cells persists.*
+*Meteorology — conserved Hebbian (cell 5). A per-node connection budget slows densification but does not produce scale-free topology. No power-law tail emerges. Three ingredients are required: kinematics, feedback, and dissipation.*
 
 ![Kuramoto Universe — filament evolution across t=0, 999, 1999, 2999, 3999, 4999; global R rises from 0.015 to 0.772](readme_assets/dl_04.png)
 

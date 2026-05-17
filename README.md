@@ -7,7 +7,7 @@
 
 **Three notebooks exploring a single question: what does structure look like when it emerges from phase dynamics under scarcity?**
 
-The through-line is one inequality — `K·R_eff = |Δ|` — introduced as a diagnostic in the ring, stress-tested across substrates in the meteorology notebook, and treated as a structure-selecting operator in the universe notebook. Each notebook stands alone. Run in order for the full arc.
+The through-line is one inequality — `K·R_eff = |Δ|` — introduced as a diagnostic in the ring, stress-tested across substrates in the meteorology notebook, and tested as a structure-shaping heuristic in the universe notebook. Each notebook stands alone. Run in order for the full arc.
 
 ---
 
@@ -87,7 +87,7 @@ The third notebook supplies the missing ingredient (dissipation, via λ-decay on
 - **Phase-degeneracy pressure.** Repulsion scales with phase similarity. Locked cells cannot overlap spatially; out-of-phase cells pass through each other. Locked clusters therefore cannot collapse into spheres — they are forced to extrude into lower-dimensional structures (lines, sheets, filaments). The geometry comes from the dynamics.
 - **Anomaly cells** seeded with a +2.5 frequency boost on 12% of the population. With ω-plasticity enabled, these become self-tuning agents that crawl along the lock-drift boundary instead of dying into full coherence or dissolving into noise.
 
-**Run 10 result (T=5000):** 216 undirected edges, mean degree 4.5, H1=11 persistence loops (longest persistence 3.59 — filamentary structure confirmed by persistent homology), and four boundary-rider cells (6, 70, 86, 92) that stay below R=0.5 for the entire run while the bulk locks into a stable sparse network at R ≈ 0.77. The fold condition K·R_eff = |Δ| no longer describes a single substrate; it describes which structures the multi-scale system *selects* and which cells live on the boundary of that selection.
+**Run 10 result (T=5000):** 216 undirected edges, mean degree 4.5, H1=11 persistence loops (longest persistence 3.59 — persistent homology detects nontrivial H1 structure), and four boundary-rider cells (6, 70, 86, 92) that stay below R=0.5 for the entire run while the bulk locks into a stable sparse network at R ≈ 0.77. The fold condition K·R_eff = |Δ| no longer describes a single substrate; it describes which structures the multi-scale system *selects* and which cells live on the boundary of that selection.
 
 ![Kuramoto Universe — filament evolution across t=0, 999, 1999, 2999, 3999, 4999; global R rises from 0.015 to 0.772](readme_assets/dl_04.png)
 

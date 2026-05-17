@@ -1,11 +1,6 @@
 # Flywheel Universe
 
-<img src="readme_assets/banner.jpg" width="50%" alt="The Threshold of Harmony">
-
-> embrace the cycles.
-> become the chain.
-
-**Three notebooks exploring a single question: what does structure look like when it emerges from phase dynamics under scarcity?**
+**Three notebooks. One diagnostic. One question: what structure emerges from phase dynamics under scarcity?**
 
 The through-line is one inequality — `K·R_eff = |Δ|` — introduced as a diagnostic in the ring, stress-tested across substrates in the meteorology notebook, and tested as a structure-shaping heuristic in the universe notebook. Each notebook stands alone. Run in order for the full arc.
 
@@ -111,9 +106,9 @@ The third notebook supplies the missing ingredient (dissipation, via λ-decay on
 
 ## Why it matters
 
-The diagnostic is real. The trilogy shows that `K·R_eff = |Δ|` usefully tracks lock-drift transitions across 1D rings, 2D tori, scale-free graphs, structured vs Gaussian frequency distributions, and hierarchical multi-scale networks. Chimera states, twisted attractors, and boundary riders are well-studied dynamical-systems objects (Kuramoto–Battogtokh 2002, Abrams–Strogatz 2004) with a live literature on metastable patterns in EEG/fMRI (Bansal, Bassett, Schöll, Omelchenko). That part is engineering — the math is what the math is.
+The engineering is real. `K·R_eff = |Δ|` usefully tracks lock-drift transitions across 1D rings, 2D tori, scale-free graphs, structured vs Gaussian frequency distributions, and hierarchical multi-scale networks. Chimera states, twisted attractors, and boundary riders are well-studied dynamical-systems objects (Kuramoto–Battogtokh 2002, Abrams–Strogatz 2004) with a live literature on metastable patterns in EEG/fMRI (Bansal, Bassett, Schöll, Omelchenko). That part is engineering — the math is what the math is.
 
-The interpretation — that this scaffolding gives an executable geometry for partial coherence in mind-like or cosmology-like systems — is **a direction, not yet a result.** The chimera-state-as-mind reading sits next to the math without ground-truth verification, and the cosmic-web visual analogue is killed by the meteorology Gaussian control. Read the captions, don't believe the framing past what the simulations actually show.
+The interpretation — that this scaffolding models mind-like or cosmology-like systems — is **a direction, not a result.** The cosmic-web visual analogue is explicitly killed by the meteorology Gaussian control. Read the captions; don't extend the framing past what the simulations show.
 
 ## Run it
 

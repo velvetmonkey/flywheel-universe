@@ -146,20 +146,7 @@ pip install numpy scipy matplotlib networkx ripser
 
 `kuramoto_ring.py` is an older standalone script kept for reference. The notebook is the current version.
 
-## Related
 
-**Own work:**
-
-- Universe feature/bug task: [zenodo.org/records/20179566](https://zenodo.org/records/20179566)
-
-**Potential collaborators — independent work, listed for context, not endorsement:**
-
-- FloatingPragma — observer-patch holography (theory): [github.com/FloatingPragma/observer-patch-holography](https://github.com/FloatingPragma/observer-patch-holography)
-- Dula (DULA2025) — OPH toroidal emulator (visualization): [codepen.io/DULA2025/pen/LERMgxv](https://codepen.io/DULA2025/pen/LERMgxv)
-- Dula (DULA2025) — Prime Inertia Engine: [codepen.io/DULA2025/pen/yyVejbr](https://codepen.io/DULA2025/pen/yyVejbr) · [github.com/DULA2025/prime-inertia-engine](https://github.com/DULA2025/prime-inertia-engine)
-- dmytronic — preprint *Logic Instantiated in Time is Ontically Experienced*: [zenodo.org/records/20233225](https://zenodo.org/records/20233225)
-
-*These are researchers whose work intersects thematically. Inclusion is for context, not endorsement; connections are speculative and the work is unverified by this author.*
 
 ## Source
 

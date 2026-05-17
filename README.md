@@ -68,9 +68,13 @@ The starting point. 120 oscillators arranged in a 1D periodic ring with nearest-
 
 ![r(t) traces across K](readme_assets/08_rg_traces.png)
 
-![Output 1 — ring output](readme_assets/output1.png)
+![Ring before/after — initial incoherent phases vs final twisted state at K=2.5](readme_assets/output1.png)
 
-![Output — ring output](readme_assets/output.png)
+*"Embrace the cycles, become the chain." Initial random phases (left) vs the final twisted/locally-ordered state (right) at K=2.5. Global r stays low in both — the right metric is winding number, not r.*
+
+![Phase evolution heatmap — random to coherent synchronization, showing chimera bands](readme_assets/output.png)
+
+*Phase evolution on the ring (twilight colormap, 0 to 2π). Coherent horizontal bands form early; phase slips visible as discontinuities. The banded structure confirms winding-number selection, not global phase lock.*
 
 ---
 

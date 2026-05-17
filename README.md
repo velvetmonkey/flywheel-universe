@@ -3,13 +3,41 @@
 > embrace the cycles.
 > become the chain.
 
-**Notebooks** (run any in-browser, no install):
+**Three notebooks. Run in order. No install — click the badge to open directly in Google Colab.**
 
-| | Notebook | Open |
-|---|---|---|
-| 1 | `kuramoto_ring.ipynb` — 1D nearest-neighbour ring | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/velvetmonkey/flywheel-universe/blob/main/kuramoto_ring.ipynb) |
-| 2 | `meteorology.ipynb` — structured frequency coarsening | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/velvetmonkey/flywheel-universe/blob/main/meteorology.ipynb) |
-| 3 | `kuramoto_universe.ipynb` — hierarchical plastic oscillator fluid | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/velvetmonkey/flywheel-universe/blob/main/kuramoto_universe.ipynb) |
+Each notebook builds on the previous. Start with the ring, end with the universe.
+
+---
+
+### 1. `kuramoto_ring.ipynb` — The foundation
+
+Nearest-neighbour Kuramoto on a 1D periodic ring. Establishes the core vocabulary: winding number selection, local vs global order parameter, phase-slip dynamics, and the lock-drift boundary K·R_eff = |Δ| as a diagnostic heuristic.
+
+**Key result:** Mean local R ≈ 0.47 while global R ≈ 0.15. The ring is locally coherent despite globally disordered. The gap is the signature.
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/velvetmonkey/flywheel-universe/blob/main/kuramoto_ring.ipynb)
+
+---
+
+### 2. `meteorology.ipynb` — The coarsening test
+
+Six simulations on the same substrate. The central result: a ring with *structured* spatial frequency disorder shows 62% boundary count reduction over T=200 (domain coarsening). A Gaussian control shows only 10% reduction. Coarsening is structure-dependent, not generic.
+
+**Key result:** The Burgers/Zel'dovich cosmic web analogy is a suggestive geometric resemblance. The Gaussian control (the cosmologically relevant case) shows the analogy has limits. The Hebbian negative result identifies the three required ingredients: kinematics, feedback, and dissipation.
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/velvetmonkey/flywheel-universe/blob/main/meteorology.ipynb)
+
+---
+
+### 3. `kuramoto_universe.ipynb` — The full system
+
+Cells (small 1D Kuramoto rings) embedded in 2D space with plastic Hebbian connections and phase-degeneracy pressure. The result is a stable sparse network that self-maintains over T=5000 time units with four persistent anomaly cells at the lock-drift boundary throughout.
+
+**Key result:** 216 undirected edges, mean degree 4.5, H1=11 loops (longest persistence 3.59 — filamentary structure confirmed by persistence homology), four boundary riders with 100% fraction_below_0.5 throughout. Cell 86: R=0.250, degree 5, out=5 in=1 — the active junction node.
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/velvetmonkey/flywheel-universe/blob/main/kuramoto_universe.ipynb)
+
+---
 
 > Inspired by this image, which suggested the topology — the math wasn't in the picture, the picture suggested which math.
 

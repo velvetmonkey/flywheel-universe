@@ -135,10 +135,16 @@ The interpretation — that this scaffolding gives an executable geometry for pa
 
 ## Run it
 
+The notebooks are the canonical form — open any in Colab with the badges above. No install required.
+
+For a local standalone run:
+
 ```bash
-pip install numpy scipy matplotlib
-python kuramoto_ring.py
+pip install numpy scipy matplotlib networkx ripser
+# then open and run the .ipynb notebooks in Jupyter
 ```
+
+`kuramoto_ring.py` is an older standalone script kept for reference. The notebook is the current version.
 
 ## Related
 

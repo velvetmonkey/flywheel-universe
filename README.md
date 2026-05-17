@@ -66,19 +66,33 @@ The standard Kuramoto model assumes all-to-all coupling — every oscillator fee
 
 ![Oph](readme_assets/oph.png)
 
-![](readme_assets/dl_01.png)
+![Meteorology — Gaussian omega control. Locked/drifting heatmap at K=0.8, sigma=1.5, N=200, T=200, testing whether the coarsening pattern survives without structured frequencies](readme_assets/dl_01.png)
 
-![](readme_assets/dl_02.png)
+*Meteorology — Gaussian ω control. Tests whether the lock/drift coarsening pattern is generic or structure-dependent; even with unstructured natural frequencies, persistent locked and drifting bands form.*
 
-![](readme_assets/dl_03.png)
+![Universe — initial network with lock/drift boundary; weight and degree distributions at t=50 and t=100](readme_assets/dl_02.png)
 
-![](readme_assets/dl_04.png)
+*Universe — initial state and early-time weight evolution. Coupling weights concentrate sharply (top histograms) as the plastic network rewires; the degree distribution collapses from a wide spread (t=0) toward a sharp peak (t=50, 100).*
 
-![](readme_assets/dl_05.png)
+![Universe — conserved network panels at t=0, 50, 100 with matching degree distributions; cyan nodes are lock/drift boundary cells](readme_assets/dl_03.png)
 
-![](readme_assets/dl_06.png)
+*Universe — topology preserved through evolution. Cyan nodes mark the lock/drift boundary; the bulk converges while a small ring of boundary cells persists.*
 
-![](readme_assets/dl_07.png)
+![Kuramoto Universe — filament evolution across t=0, 999, 1999, 2999, 3999, 4999; global R rises from 0.015 to 0.772](readme_assets/dl_04.png)
+
+*Universe — filament evolution across the full run. Cluster colour tracks the dominant phase basin (rainbow → blue → red → orange → blue) as global R climbs from 0.015 to 0.772.*
+
+![Global order parameter R(t) over t=0 to 5000 — saturates near 0.77 with bounded fluctuation](readme_assets/dl_05.png)
+
+*Universe — global R(t) saturates near 0.77 by t≈100 and holds for the full t=5000 run, with one brief excursion near t≈3500.*
+
+![Final-state network with 216 edges and mean degree 4.5, plus degree distribution histogram peaked at 4–6](readme_assets/dl_06.png)
+
+*Universe — final network state from run 10. 216 undirected edges, mean degree 4.5, degree distribution peaked near 5.*
+
+![Anomaly cell R(t) traces — cyan lines are four persistent boundary riders stuck below R=0.5; grey lines are cells absorbed into the main cluster](readme_assets/dl_07.png)
+
+*Universe — four cells (6, 70, 86, 92) stayed below R=0.5 for the entire t=5000 run while the rest locked into the bulk. 100% fraction_below_0.5 throughout — these are the persistent boundary riders flagged in the commit log.*
 
 ## Why it matters
 

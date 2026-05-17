@@ -54,7 +54,9 @@ plt.plot(K_values, r_final, 'o-', linewidth=2, markersize=4)
 # Pedagogical contrast: overlay where mean-field theory *would* predict K_c.
 # Nothing actually happens at K=1.2 on a nearest-neighbour ring — the line is
 # kept to make the absence of a transition visible against the textbook claim.
-plt.axvline(x=1.2, color='red', linestyle='--', alpha=0.3, label='Mean-field K_c (does not apply here)')
+# K_c ≈ 1.2 is the mean-field result for all-to-all coupling — it does NOT apply here.
+# Nearest-neighbor 1D rings have no clean phase transition; sync scales differently with N.
+plt.axvline(x=1.2, color='red', linestyle='--', alpha=0.3, label='Mean-field K_c ≈ 1.2 (all-to-all only, not applicable here)')
 plt.xlabel('Coupling strength K')
 plt.ylabel('Order parameter r')
 plt.title('Bifurcation Diagram — Kuramoto Oscillators on a Ring')
@@ -64,12 +66,14 @@ plt.tight_layout()
 plt.show()
 
 # ------------------------------------------------
-# 2. Simulation at K = 2.5 — chimera / twisted regime
+# 2. Simulation at K = 2.5 — twisted / locally-ordered regime
+# Note: pure nearest-neighbor coupling produces twisted states, not true chimeras.
+# True chimeras require nonlocal coupling (Abrams & Strogatz 2004).
 # ------------------------------------------------
-K_chimera = 2.5   # Intermediate coupling — chimera states and twisted attractors live here
+K_sim = 2.5   # Intermediate coupling — twisted states and local ordering
 
 theta0 = np.random.uniform(0, 2*np.pi, N)
-sol = solve_ivp(kuramoto, t_span, theta0, args=(omega, K_chimera, N),
+sol = solve_ivp(kuramoto, t_span, theta0, args=(omega, K_sim, N),
                 method='RK45', dense_output=True, rtol=1e-6, atol=1e-8)
 
 t_plot = np.linspace(0, 80, 1200)
@@ -98,7 +102,7 @@ plt.figure(figsize=(8, 4))
 plt.plot(t_plot, r_time, linewidth=2.5)
 plt.xlabel('Time')
 plt.ylabel('Order parameter r(t)')
-plt.title(f'Time evolution of order parameter r(t)  (K = {K_chimera})')
+plt.title(f'Time evolution of order parameter r(t)  (K = {K_sim})')
 plt.grid(True, alpha=0.5)
 plt.ylim(0, 1.05)
 plt.tight_layout()
@@ -152,7 +156,7 @@ theta_init = theta0
 theta_final = sol.sol(t_plot[-1])
 
 plot_ring(theta_init, 'Initial: Incoherent phases', ax1)
-plot_ring(theta_final, f'Final ring state (K={K_chimera}) — twisted/chimera, not global sync', ax2)
+plot_ring(theta_final, f'Final ring state (K={K_sim}) — twisted/chimera, not global sync', ax2)
 plt.suptitle('Oscillators on a Ring — winding number selection and chimera states')
 plt.tight_layout()
 plt.show()

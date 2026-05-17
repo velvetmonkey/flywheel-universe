@@ -3,7 +3,13 @@
 > embrace the cycles.
 > become the chain.
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/velvetmonkey/flywheel-universe/blob/main/kuramoto_ring.ipynb)
+**Notebooks** (run any in-browser, no install):
+
+| | Notebook | Open |
+|---|---|---|
+| 1 | `kuramoto_ring.ipynb` — 1D nearest-neighbour ring | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/velvetmonkey/flywheel-universe/blob/main/kuramoto_ring.ipynb) |
+| 2 | `meteorology.ipynb` — structured frequency coarsening | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/velvetmonkey/flywheel-universe/blob/main/meteorology.ipynb) |
+| 3 | `kuramoto_universe.ipynb` — hierarchical plastic oscillator fluid | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/velvetmonkey/flywheel-universe/blob/main/kuramoto_universe.ipynb) |
 
 > Inspired by this image, which suggested the topology — the math wasn't in the picture, the picture suggested which math.
 

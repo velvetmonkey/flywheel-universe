@@ -107,25 +107,7 @@ The third notebook supplies the missing ingredient (dissipation, via λ-decay on
 
 ---
 
-## Other visuals
 
-*Adjacent imagery — not outputs of the trilogy notebooks. Included as conceptual neighbours (attractor geometry, heteroclinic chains, Stuart–Landau normal form, McKay/affine-E8, OPH-inspired). Decorative, not load-bearing.*
-
-![Attractor geometry comparison panel](readme_assets/attractor_geometry_comparison_panel.png)
-
-![LPA heteroclinic cycle chain 3D](readme_assets/lpa_heteroclinic_cycle_chain_3d.png)
-
-![McKay affine E8 rep dimensions](readme_assets/mckay_affine_e8_rep_dimensions.png)
-
-![McKay affine E8 rep dimensions (SVG)](readme_assets/mckay_affine_e8_rep_dimensions.svg)
-
-![Stuart-Landau normal form (animated)](readme_assets/stuart_landau_normal_form_animated.gif)
-
-![Stuart-Landau normal form (static)](readme_assets/stuart_landau_normal_form_static.png)
-
-![Oph](readme_assets/oph.png)
-
----
 
 ## Why it matters
 

@@ -1,6 +1,6 @@
 # Flywheel Universe
 
-![Banner](readme_assets/banner.jpg)
+<img src="readme_assets/banner.jpg" width="50%" alt="The Threshold of Harmony">
 
 > embrace the cycles.
 > become the chain.

@@ -66,6 +66,20 @@ The standard Kuramoto model assumes all-to-all coupling — every oscillator fee
 
 ![Oph](readme_assets/oph.png)
 
+![](readme_assets/dl_01.png)
+
+![](readme_assets/dl_02.png)
+
+![](readme_assets/dl_03.png)
+
+![](readme_assets/dl_04.png)
+
+![](readme_assets/dl_05.png)
+
+![](readme_assets/dl_06.png)
+
+![](readme_assets/dl_07.png)
+
 ## Why it matters
 
 Chimera states — partial coherence, structured incoherence, winding-number selection — are well-studied (Kuramoto-Battogtokh 2002, Abrams-Strogatz 2004) and have speculative links to neural dynamics. This repo makes them executable and visible. The connection to consciousness is a direction, not yet a result.

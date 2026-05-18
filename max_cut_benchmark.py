@@ -45,13 +45,17 @@ def kuramoto_rhs_fast(t, theta, omega, K, W):
 def hebbian_update_fast(W, theta, A_mask, K_sign=1.0, dt=0.5, eta=0.05, lam=0.003, budget=1.0):
     """Vectorised budgeted Hebbian update. Sign-aware: reinforces pairs at the
     equilibrium preferred by the coupling regime (in-phase for K>0, anti-phase
-    for K<0). exist_mask enforced by A_mask."""
+    for K<0). exist_mask enforced by A_mask. Symmetrised after row-scaling so
+    the resulting W is a valid undirected weighted adjacency."""
     cos_diff = np.cos(theta[np.newaxis, :] - theta[:, np.newaxis])
     W = W + dt * eta * (K_sign * cos_diff - lam * W)
     W = np.where(A_mask, np.maximum(W, 0.0), 0.0)
     row_totals = W.sum(axis=1) + 1e-12
     scale = np.minimum(1.0, budget / row_totals)
-    return W * scale[:, np.newaxis]
+    W = W * scale[:, np.newaxis]
+    W = (W + W.T) / 2
+    W = np.where(A_mask, np.maximum(W, 0.0), 0.0)
+    return W
 
 def extract_cut(G, theta):
     nodes = sorted(G.nodes())
@@ -73,6 +77,28 @@ def extract_cut_best(G, theta, n_hyperplanes=100, rng=None):
                   if assignment[u] != assignment[v])
         best = max(best, cut)
     return best
+
+def greedy_max_cut(W_adj, seed=0):
+    """Greedy local-search Max-Cut on a symmetric weighted adjacency matrix.
+
+    Starts at a random ±1 spin assignment; flips the single node with the
+    largest cut-improving gain each step until no flip improves. For symmetric
+    W with no self-loops, cut = 0.25 * (sum(W) - s^T W s); flipping s_k changes
+    s^T W s by -4 s_k (Ws)_k, so the gain of flipping node k is +s_k (Ws)_k.
+    Returns (cut_value, spins).
+    """
+    rng = np.random.default_rng(seed)
+    N = W_adj.shape[0]
+    s = rng.choice([-1, 1], size=N).astype(np.float64)
+    while True:
+        Ws = W_adj @ s
+        gains = s * Ws
+        k = int(np.argmax(gains))
+        if gains[k] <= 0:
+            break
+        s[k] = -s[k]
+    cut = 0.25 * (W_adj.sum() - s @ W_adj @ s)
+    return float(cut), s.astype(int)
 
 def run_static(G, K=2.0, T=50, n_runs=5, seed=0):
     W, _, N = graph_to_matrices(G)
@@ -147,49 +173,72 @@ def run_hybrid(G, K=-0.5, T=200, T_prune_frac=0.3, dt=0.5, n_runs=20,
     return best
 
 # ── RUN ──
-import sys
-_arg = sys.argv[1] if len(sys.argv) > 1 else None
-if _arg and _arg.startswith('G') and _arg[1:].isdigit():
-    G = load_gset(_arg)                  # GSet instance, e.g. G1 (800 nodes, best known 11624)
-    _n_runs = 5
-elif _arg == 'dense':
-    G = build_test_graph(n=50, p=0.5)
-    _n_runs = 20
+import os, csv
+
+def run_method(method, G, seed, K=-0.5, T=200):
+    """One method × one seed on G. Returns (cut, runtime_seconds)."""
+    t0 = time.time()
+    if method == 'static':
+        cut = run_static(G, K=K, T=T, n_runs=1, seed=seed)
+    elif method == 'random_rounding':
+        W, _, N = graph_to_matrices(G)
+        rng = np.random.default_rng(seed)
+        omega = rng.normal(0, 0.3, N)
+        theta0 = rng.uniform(0, 2*np.pi, N)
+        sol = solve_ivp(kuramoto_rhs_fast, (0, T), theta0,
+                        args=(omega, K, W),
+                        method='DOP853', rtol=1e-6, atol=1e-8)
+        cut = extract_cut_best(G, sol.y[:, -1], rng=rng)
+    elif method == 'hebbian':
+        cut = run_hebbian(G, K=K, T=T, n_runs=1, seed=seed)
+    elif method == 'hybrid':
+        cut = run_hybrid(G, K=K, T=T, n_runs=1, seed=seed)
+    elif method == 'greedy':
+        W, _, _ = graph_to_matrices(G)
+        cut, _ = greedy_max_cut(W, seed=seed)
+    else:
+        raise ValueError(method)
+    return float(cut), time.time() - t0
+
+graphs = {
+    'sparse_er_200_p05': build_test_graph(n=200, p=0.05),
+    'dense_er_200_p15':  build_test_graph(n=200, p=0.15),
+}
+if os.path.exists('G1'):
+    graphs['gset_g1'] = load_gset('G1')
 else:
-    G = build_test_graph(n=200, p=0.05)  # sparse: 200 nodes, mean degree ~10
-    _n_runs = 20
+    print("G1 not found in repo root — skipping GSet benchmark")
 
-N, M = G.number_of_nodes(), G.number_of_edges()
-mean_deg = 2 * M / N
-print(f"Graph: {N} nodes, {M} edges, mean degree {mean_deg:.1f}\n")
+methods = ['static', 'random_rounding', 'hebbian', 'hybrid', 'greedy']
+seeds = list(range(10))
 
-print(f"Static Kuramoto ({_n_runs} runs, fixed rounding)...")
-t0 = time.time()
-s = run_static(G, K=-0.5, T=200, n_runs=_n_runs)
-# Post-hoc randomised rounding on a fresh solve sequence
-rng = np.random.default_rng(0)
-W_static, _, N_ = graph_to_matrices(G)
-s_rr = 0
-for _ in range(_n_runs):
-    omega = rng.normal(0, 0.3, N_)
-    theta0 = rng.uniform(0, 2*np.pi, N_)
-    sol = solve_ivp(kuramoto_rhs_fast, (0, 200), theta0,
-                    args=(omega, -0.5, W_static),
-                    method='DOP853', rtol=1e-6, atol=1e-8)
-    s_rr = max(s_rr, extract_cut_best(G, sol.y[:, -1], rng=rng))
-print(f"  Best cut (fixed): {s}   (random): {s_rr}   ({time.time()-t0:.1f}s)\n")
+rows = []
+for graph_name, G in graphs.items():
+    print(f"\n=== {graph_name}: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges ===")
+    for method in methods:
+        cuts, times = [], []
+        for seed in seeds:
+            cut, rt = run_method(method, G, seed)
+            cuts.append(cut)
+            times.append(rt)
+            print(f"  {method:18s} seed={seed} cut={cut:.0f} ({rt:.1f}s)")
+        rows.append({
+            'graph': graph_name,
+            'method': method,
+            'mean_cut': float(np.mean(cuts)),
+            'max_cut':  float(np.max(cuts)),
+            'std_cut':  float(np.std(cuts)),
+            'mean_runtime': float(np.mean(times)),
+        })
 
-print(f"Hebbian Kuramoto ({_n_runs} runs, randomised rounding)...")
-t0 = time.time()
-h = run_hebbian(G, K=-0.5, T=200, n_runs=_n_runs)
-print(f"  Best cut: {h}  ({time.time()-t0:.1f}s)\n")
+os.makedirs('results', exist_ok=True)
+csv_path = 'results/benchmark_results.csv'
+with open(csv_path, 'w', newline='') as f:
+    w = csv.DictWriter(f, fieldnames=['graph', 'method', 'mean_cut', 'max_cut', 'std_cut', 'mean_runtime'])
+    w.writeheader()
+    w.writerows(rows)
 
-print(f"Hybrid ({_n_runs} runs, 30% Hebbian prune + 70% static, randomised rounding)...")
-t0 = time.time()
-hyb = run_hybrid(G, K=-0.5, T=200, n_runs=_n_runs)
-print(f"  Best cut: {hyb}  ({time.time()-t0:.1f}s)\n")
-
-print(f"Static (fixed):   {s}")
-print(f"Static (random):  {s_rr}")
-print(f"Hebbian:          {h}")
-print(f"Hybrid:           {hyb}")
+print(f"\nWrote {csv_path}\n")
+print(f"{'graph':22s} {'method':18s} {'mean':>10s} {'max':>8s} {'std':>8s} {'time(s)':>10s}")
+for r in rows:
+    print(f"{r['graph']:22s} {r['method']:18s} {r['mean_cut']:10.1f} {r['max_cut']:8.0f} {r['std_cut']:8.2f} {r['mean_runtime']:10.1f}")

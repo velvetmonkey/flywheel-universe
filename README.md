@@ -29,6 +29,10 @@ Six reusable algorithmic primitives for any network that exhibits coherence, dri
 
 The math applies wherever you have coupled dynamic agents under resource constraints: power grids, brain networks, weather ensembles, distributed systems, swarm robotics. The notebooks are the demonstration. The primitives are the payload.
 
+*The concept, visualised: gold nodes = locked coherent clusters, teal/violet = boundary riders at the structural junctions, filaments = the adaptive sparse graph.*
+
+![Explainer — boundary riders as structural junctions between coherent clusters](readme_assets/explainer.png)
+
 ---
 
 | # | Notebook | What it does | Key result | Run |

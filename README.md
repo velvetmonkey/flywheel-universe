@@ -47,9 +47,9 @@ The math applies wherever you have coupled dynamic agents under resource constra
 
 ## 4. Max-Cut Benchmark — validating the budgeted primitive
 
-The strongest test of primitive #3 (budgeted adaptive graph update) is on a canonical NP-hard problem: Max-Cut.
+The strongest test of primitive #3 (budgeted adaptive graph update) is on a canonical NP-hard problem: Max-Cut. We compared four solvers across two regimes: a sparse Erdős–Rényi graph where the budget constraint is binding, and the canonical 800-node GSet G1 instance for literature comparison. All runs at $T=200$, $K=-0.5$, $\text{budget}=\text{mean degree}$.
 
-We compared four solvers on a 200-node Erdős–Rényi graph (942 edges, mean degree 9.4, 20 runs, $T=200$, $K=-0.5$):
+### Sparse Erdős–Rényi — 200 nodes, mean degree 9.4 (20 runs)
 
 | Method                              | Best Cut | Runtime | Notes |
 |-------------------------------------|----------|---------|-------|
@@ -58,15 +58,28 @@ We compared four solvers on a 200-node Erdős–Rényi graph (942 edges, mean de
 | Full Hebbian (budget = mean degree) | 680      | 106 s   | Matches hybrid quality |
 | **Hybrid (30 % prune + 70 % static)** | **680** | **60 s** | **Recommended practical configuration** — same quality in 57 % of the time |
 
-**Key takeaway**: The hybrid schedule matches full Hebbian quality while cutting runtime by 43 % and staying within 1 % of the best static result. This demonstrates that budgeted Hebbian adaptation is not just a theoretical primitive — it is a practical front-end that produces sparse, high-quality coupling graphs on which classical dynamics finish the job faster and cheaper.
+On the sparse regime, the hybrid schedule matches full Hebbian quality, runs in 57 % of the time, and lands within 1 % of the best static result. Budgeted Hebbian adaptation acts as a practical front-end: it learns a sparse coupling graph, then static Kuramoto finishes the job faster.
 
-The benchmark script (`max_cut_benchmark.py`) is included in the repo root and can be run directly:
+### GSet G1 — 800 nodes, mean degree 47.9 (5 runs, literature benchmark, best-known cut 11624)
+
+| Method                              | Best Cut | % of best-known | Runtime |
+|-------------------------------------|----------|-----------------|---------|
+| Static (fixed rounding)             | 11472    | 98.69 %         | combined |
+| Static + random hyperplanes         | **11524** | **99.14 %**    | 28.5 min |
+| Full Hebbian (budget = mean degree) | 11284    | 97.07 %         | 15.1 min |
+| **Hybrid (30 % prune + 70 % static)** | **11285** | **97.08 %**   | **10.6 min** |
+
+On the dense GSet instance, all four methods land in the 97–99 % band of optimum. Static-AFM with randomised hyperplane rounding is the strongest single method, while Hybrid is the fastest adaptive option — matching full Hebbian quality at 70 % of the runtime. The "Hebbian matches Static" claim holds on the sparse regime where coupling budget is the binding constraint; on dense canonical instances, dense connectivity favours Static, and adaptive pruning trades ~2 % of optimum for the sparse-weight allocation.
+
+**Key takeaway**: Budgeted Hebbian adaptation is a real primitive, not just a theoretical one. The hybrid schedule (Hebbian-learn the sparse weights, then freeze and solve) is the recommended practical configuration: in both regimes it matches full Hebbian quality at a fraction of the cost, and stays within 1–2 % of the best static result.
+
+The benchmark script (`max_cut_benchmark.py`) is included in the repo root:
 
 ```bash
-python max_cut_benchmark.py
+python max_cut_benchmark.py          # default: G(200, 0.05), n_runs=20
+python max_cut_benchmark.py G1       # GSet G1, n_runs=5
+python max_cut_benchmark.py dense    # G(50, 0.5)
 ```
-
-GSet benchmark (800-node instances) in progress.
 
 ---
 

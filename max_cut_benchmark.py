@@ -110,7 +110,7 @@ def run_hebbian(G, K=2.0, T=50, dt=0.5, n_runs=5,
         best = max(best, extract_cut_best(G, theta, rng=rng))
     return best
 
-def run_hybrid(G, K=-0.5, T=200, T_prune_frac=0.3, dt=0.5, n_runs=_n_runs,
+def run_hybrid(G, K=-0.5, T=200, T_prune_frac=0.3, dt=0.5, n_runs=20,
                eta=0.05, lam=0.003, budget=None, seed=0):
     """
     Phase 1 (T_prune_frac * T): Hebbian adaptive coupling learns sparse W.

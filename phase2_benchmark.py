@@ -678,7 +678,9 @@ def run_method(method, A, theta0, omega, a_gains, budget_value,
     elif method == 'sdp_gw':
         sdp_bound, gw_cut = run_sdp_gw(A, rngs['rounding'])
         runtime = time.time() - start_time
-        return (0.0, 0.0, 0.0, sdp_bound, gw_cut, 0.0,
+        # Echo gw_cut into cut_polished so SDP results appear in standard
+        # cross-method aggregations; sdp_bound is the relaxation upper bound.
+        return (gw_cut, gw_cut, gw_cut, sdp_bound, gw_cut, 0.0,
                 metrics['active_edges'], metrics['mean_active_degree'], metrics['max_active_degree'],
                 metrics['row_sum_mean'], metrics['row_sum_max'], metrics['budget_violation_max'], metrics['symmetry_error'],
                 0, 0.0, runtime, 0, 0, 0, None)
@@ -1082,14 +1084,298 @@ def run_pilot():
 # 9. FULL PHASE 2 (not run by default)
 # =============================================================================
 
+FULL_FAMILIES = ['sparse_er_200_p05', 'dense_er_200_p15', 'random_regular_200_d10', 'exact_small']
+FULL_ER_GRAPH_SEEDS = [0, 1, 2]
+FULL_GSET_INCLUDED = True
+FULL_METHOD_SEEDS = list(range(10))
+FULL_BUDGET_MODES = [('half_mean_deg', 0.5), ('mean_deg', 1.0)]  # multiplier on mean_degree
+
+def _run_cell(family, G, g_seed, n, m, mean_deg, best_known, exact_status,
+              budget_value, budget_mode, omega_mode, method_seeds,
+              learned_mask, prob, Y_param, X_var,
+              save_snapshots=True):
+    """Run all methods × method_seeds on a single (family, g_seed, budget_mode, omega_mode) cell.
+    Returns a list of row dicts (one per method × method_seed)."""
+    A = nx.to_numpy_array(G)
+    np.fill_diagonal(A, 0)
+
+    rows = []
+    for method in ALL_METHODS:
+        if method == 'sdp_gw' and not compute_sdp_scope_ok(family, g_seed, n):
+            continue
+        for m_seed in method_seeds:
+            if method == 'sdp_gw' and m_seed > 0:
+                continue
+            rngs = make_rngs(g_seed, m_seed)
+            theta0 = rngs['phases'].uniform(0, 2 * np.pi, n)
+            if omega_mode == 'zero':
+                omega = np.zeros(n)
+            else:
+                omega = rngs['omega'].normal(0, 0.3, n)
+            a_gains = np.ones(n)
+
+            pt_before, pc_before = _proj_snapshot()
+            res = run_method(method, A, theta0, omega, a_gains, budget_value,
+                             prob, Y_param, X_var, rngs,
+                             learned_support_mask=learned_mask)
+            pt_after, pc_after = _proj_snapshot()
+            cvxpy_time_this_run = pt_after - pt_before
+            cvxpy_calls_this_run = pc_after - pc_before
+
+            W_final = res[-1]
+            if save_snapshots and method in HEBBIAN_LIKE and W_final is not None:
+                tag = f"{family}_{g_seed}_{budget_mode}_{omega_mode}"
+                save_W_snapshot(W_final, W_SNAPSHOT_DIR, tag, '', method, m_seed)
+
+            L_valid = (method in ('hebbian_frobenius', 'hybrid_frobenius')
+                       and omega_mode == 'zero'
+                       and budget_mode == 'half_mean_deg')
+
+            row = {
+                'graph_family': family, 'graph_seed': g_seed, 'n': n, 'm': m,
+                'mean_degree': mean_deg,
+                'budget_mode': budget_mode, 'budget_value': budget_value,
+                'projection_type': ('frobenius' if 'frobenius' in method else
+                                    ('sinkhorn' if 'sinkhorn' in method else 'none')),
+                'method': method, 'amplitude_sigma': 0.0, 'amplitude_label': 'ideal',
+                'omega_mode': omega_mode, 'restart_seed': m_seed,
+                'support_source': 'hebbian_seed0' if method == 'learned_support_random_weights' else 'graph',
+                'T_adapt': 50.0, 'T_static': 50.0,
+                'adaptive_updates': res[18], 'projection_calls': res[16], 'ode_nfev': res[17],
+                'runtime_sec': res[15],
+                'cvxpy_time_sec': cvxpy_time_this_run,
+                'cvxpy_calls': cvxpy_calls_this_run,
+                'cut_raw': res[0], 'cut_rounded': res[1], 'cut_polished': res[2],
+                'sdp_bound': res[3], 'gw_cut': res[4],
+                'exact_optimum': best_known if not np.isnan(best_known) else None,
+                'exact_status': exact_status,
+                'cut_ratio_exact': (res[2] / best_known) if best_known and not np.isnan(best_known) and best_known > 0 else 0.0,
+                'active_edges': res[6], 'mean_active_degree': res[7], 'max_active_degree': res[8],
+                'row_sum_mean': res[9], 'row_sum_max': res[10], 'budget_violation_max': res[11],
+                'symmetry_error': res[12],
+                'energy_descent_violations': res[13] if L_valid else 0,
+                'energy_violations_raw': res[13],
+                'final_L': res[14],
+                'L_valid': L_valid,
+            }
+            rows.append(row)
+            print(f"    {method:32s} m_seed={m_seed} cut_pol={res[2]:.0f} "
+                  f"t={res[15]:.1f}s pc={res[16]} viol={res[13]}")
+    return rows
+
+def run_heterogeneity_experiment():
+    """Amplitude heterogeneity ablation on sparse_er_200_p05."""
+    print("\n--- HETEROGENEITY EXPERIMENT (sparse_er, lognormal gains) ---")
+    sigmas = [0.0, 0.25, 0.5, 1.0]
+    het_methods = ['static_budgeted', 'hebbian_frobenius', 'hybrid_frobenius', 'oracle_compensation']
+    rows = []
+    n = 200
+    for g_seed in range(3):
+        graph_rng = np.random.default_rng(g_seed)
+        G = nx.erdos_renyi_graph(n, 0.05, seed=g_seed)
+        A = nx.to_numpy_array(G)
+        np.fill_diagonal(A, 0)
+        A_mask = (A > 0)
+        m = G.number_of_edges()
+        mean_deg = 2.0 * m / n
+        budget_value = mean_deg / 2.0
+        prob, Y_param, X_var = make_frobenius_projector(n, A_mask, budget_value)
+
+        # Precompute learned mask
+        learned_mask, _, _, _, _ = precompute_learned_support(G, A, mean_deg, budget_value, A_mask, n)
+
+        for sigma in sigmas:
+            for m_seed in range(5):
+                rngs = make_rngs(g_seed, m_seed)
+                theta0 = rngs['phases'].uniform(0, 2 * np.pi, n)
+                # Lognormal with unit-mean correction (fix 4)
+                a_gains = rngs['amplitude'].lognormal(-0.5 * sigma**2, sigma, n)
+                omega = np.zeros(n)
+
+                for method in het_methods:
+                    t0 = time.time()
+                    if method == 'oracle_compensation':
+                        # Oracle: W chosen to cancel heterogeneity at unit static budget
+                        a_outer = np.outer(a_gains, a_gains)
+                        W_oracle = np.where(A_mask, A.astype(float) / (a_outer + 1e-12), 0.0)
+                        W_oracle = 0.5 * (W_oracle + W_oracle.T)
+                        W_final = project_frobenius_dual(W_oracle, A_mask, budget_value)
+                        W_eff = W_final * a_outer
+                        sol = solve_ivp(kuramoto_rhs_fast, (0, 200), theta0,
+                                        args=(omega, -0.5, W_eff),
+                                        method='DOP853', rtol=1e-6, atol=1e-8)
+                        cut_raw, cut_rounded, cut_polished = random_hyperplane_rounding(
+                            sol.y[:, -1], A, seeds=20, rng=rngs['rounding'])
+                        corr_W_inv_gain = 1.0
+                        corr_W_gain = -1.0
+                    else:
+                        res = run_method(method, A, theta0, omega, a_gains, budget_value,
+                                         prob, Y_param, X_var, rngs,
+                                         learned_support_mask=learned_mask)
+                        cut_raw, cut_rounded, cut_polished = res[0], res[1], res[2]
+                        W_final = res[-1]
+                        if W_final is not None and method in ('hebbian_frobenius', 'hybrid_frobenius'):
+                            active = (W_final > 1e-6) & np.triu(np.ones_like(W_final, dtype=bool), 1)
+                            if active.any():
+                                Wv = W_final[active]
+                                a_outer = np.outer(a_gains, a_gains)
+                                inv_gain = (1.0 / (a_outer + 1e-12))[active]
+                                gain = a_outer[active]
+                                if len(Wv) > 1 and np.std(Wv) > 1e-12:
+                                    corr_W_inv_gain = float(np.corrcoef(Wv, inv_gain)[0, 1])
+                                    corr_W_gain = float(np.corrcoef(Wv, gain)[0, 1])
+                                else:
+                                    corr_W_inv_gain = corr_W_gain = 0.0
+                            else:
+                                corr_W_inv_gain = corr_W_gain = 0.0
+                        else:
+                            corr_W_inv_gain = corr_W_gain = 0.0
+                    rows.append({
+                        'sigma': sigma, 'method': method,
+                        'graph_seed': g_seed, 'method_seed': m_seed,
+                        'cut_raw': cut_raw, 'cut_rounded': cut_rounded, 'cut_polished': cut_polished,
+                        'corr_W_inverse_gain': corr_W_inv_gain,
+                        'corr_W_gain': corr_W_gain,
+                        'runtime_sec': time.time() - t0,
+                    })
+                    print(f"    g={g_seed} m={m_seed} sigma={sigma} {method:25s} "
+                          f"cut={cut_polished:.0f} t={time.time()-t0:.1f}s")
+    df = pd.DataFrame(rows)
+    # Compute cut_ratio_vs_baseline (vs static_budgeted at sigma=0 for each graph_seed)
+    baseline = (df[(df['method'] == 'static_budgeted') & (df['sigma'] == 0.0)]
+                  .groupby('graph_seed')['cut_polished'].mean().to_dict())
+    df['cut_ratio_vs_baseline'] = df.apply(
+        lambda r: r['cut_polished'] / baseline.get(r['graph_seed'], 1.0)
+                  if baseline.get(r['graph_seed'], 0.0) > 0 else 0.0,
+        axis=1)
+    df.to_csv('results/heterogeneity_experiment.csv', index=False)
+    print(f"\nWrote results/heterogeneity_experiment.csv ({len(rows)} rows)")
+    return df
+
 def run_full():
-    """Full Phase 2 sweep — graph_seed=0..2 for ER, all budget modes, full methods,
-    ablation block, heterogeneity experiment. Long (~6 h)."""
-    raise NotImplementedError(
-        "Full Phase 2 run intentionally not invoked until pilot passes. "
-        "Once pilot passes, this function will be filled in with the full sweep "
-        "matching the approved plan (graph_seeds 0..2, both budget modes, "
-        "detuning ablation on sparse_er, heterogeneity experiment).")
+    """Full Phase 2 sweep — graph_seed=0..2 for ER, 2 budget modes, all methods,
+    detuning ablation on sparse_er, heterogeneity experiment. Long (~12-16 h)."""
+    print("\n--- FULL PHASE 2 SUITE ---")
+    print(f"Families: {FULL_FAMILIES} (+ gset_g1 if present)")
+    print(f"ER graph seeds: {FULL_ER_GRAPH_SEEDS}, method seeds: {FULL_METHOD_SEEDS}")
+    print(f"Budget modes: {[m for m, _ in FULL_BUDGET_MODES]}")
+
+    os.makedirs('results', exist_ok=True)
+    os.makedirs(W_SNAPSHOT_DIR, exist_ok=True)
+
+    print("\n[unit test]")
+    unit_test_projection()
+    print("[unit test] OK\n")
+
+    print("[profile] dual solver at n=200")
+    profile_dual_at_n200(n_calls=20, target_ms=50.0)
+    print("[profile] OK\n")
+
+    all_rows = []
+    csv_path = 'results/phase2_full_results.csv'
+
+    # === Core loop: families × graph_seeds × budget_modes × omega_mode=zero ===
+    for family in FULL_FAMILIES:
+        graph_seeds = FULL_ER_GRAPH_SEEDS if family != 'exact_small' else [0]
+        for g_seed in graph_seeds:
+            graph_rng = np.random.default_rng(g_seed)
+            fixed_n = (20 + g_seed) if family == 'exact_small' else None  # vary n in [20, 22]
+            G, n, m, mean_deg, best_known = build_graph(family, g_seed, graph_rng, fixed_n=fixed_n)
+            if G is None:
+                print(f"Skipping {family} g_seed={g_seed}")
+                continue
+            A = nx.to_numpy_array(G)
+            np.fill_diagonal(A, 0)
+            A_mask = (A > 0)
+
+            if family == 'exact_small':
+                bf_t0 = time.time()
+                best_known = brute_force_max_cut(A)
+                exact_status = 'proven_optimal'
+                print(f"[brute force] {family} g_seed={g_seed} n={n} opt={best_known:.0f} ({time.time()-bf_t0:.1f}s)")
+            elif family == 'gset_g1':
+                exact_status = 'best_known'
+            else:
+                exact_status = 'timeout'
+
+            for budget_mode, mult in FULL_BUDGET_MODES:
+                budget_value = mult * mean_deg
+                print(f"\n=== {family} g_seed={g_seed} budget={budget_mode}({budget_value:.2f}) "
+                      f"n={n} m={m} ===")
+
+                # Precompute canonical support per (g_seed, budget_mode)
+                print(f"  [precompute] hebbian_frobenius m_seed=0 for canonical support...")
+                t0 = time.time()
+                learned_mask, _W_learned, prob, Y_param, X_var = precompute_learned_support(
+                    G, A, mean_deg, budget_value, A_mask, n)
+                print(f"  [precompute] support density "
+                      f"{learned_mask.sum() / (n * (n - 1)):.4f}  ({time.time()-t0:.1f}s)")
+
+                cell_rows = _run_cell(family, G, g_seed, n, m, mean_deg, best_known, exact_status,
+                                      budget_value, budget_mode, 'zero', FULL_METHOD_SEEDS,
+                                      learned_mask, prob, Y_param, X_var, save_snapshots=True)
+                all_rows.extend(cell_rows)
+                # Incremental save so we don't lose progress on crash
+                pd.DataFrame(all_rows).to_csv(csv_path, index=False)
+
+    # === Add GSet G1 if present ===
+    if FULL_GSET_INCLUDED and os.path.exists('G1'):
+        family = 'gset_g1'
+        g_seed = 0
+        G, n, m, mean_deg, best_known = build_graph(family, g_seed, np.random.default_rng(g_seed))
+        if G is not None:
+            A = nx.to_numpy_array(G)
+            np.fill_diagonal(A, 0)
+            A_mask = (A > 0)
+            exact_status = 'best_known'
+            for budget_mode, mult in FULL_BUDGET_MODES:
+                budget_value = mult * mean_deg
+                print(f"\n=== {family} g_seed=0 budget={budget_mode}({budget_value:.2f}) n={n} m={m} ===")
+                print(f"  [precompute] hebbian_frobenius m_seed=0 for canonical support...")
+                t0 = time.time()
+                learned_mask, _W, prob, Y_param, X_var = precompute_learned_support(
+                    G, A, mean_deg, budget_value, A_mask, n)
+                print(f"  [precompute] support density "
+                      f"{learned_mask.sum() / (n * (n - 1)):.4f}  ({time.time()-t0:.1f}s)")
+                cell_rows = _run_cell(family, G, g_seed, n, m, mean_deg, best_known, exact_status,
+                                      budget_value, budget_mode, 'zero', FULL_METHOD_SEEDS,
+                                      learned_mask, prob, Y_param, X_var, save_snapshots=True)
+                all_rows.extend(cell_rows)
+                pd.DataFrame(all_rows).to_csv(csv_path, index=False)
+
+    # === Detuning ablation: sparse_er with omega_sigma=0.3 ===
+    print("\n--- DETUNING ABLATION (sparse_er, omega_sigma=0.3) ---")
+    for g_seed in FULL_ER_GRAPH_SEEDS:
+        graph_rng = np.random.default_rng(g_seed)
+        G, n, m, mean_deg, best_known = build_graph('sparse_er_200_p05', g_seed, graph_rng)
+        A = nx.to_numpy_array(G)
+        np.fill_diagonal(A, 0)
+        A_mask = (A > 0)
+        for budget_mode, mult in FULL_BUDGET_MODES:
+            budget_value = mult * mean_deg
+            print(f"\n=== sparse_er_200_p05_ablation g_seed={g_seed} "
+                  f"budget={budget_mode}({budget_value:.2f}) ===")
+            t0 = time.time()
+            learned_mask, _W, prob, Y_param, X_var = precompute_learned_support(
+                G, A, mean_deg, budget_value, A_mask, n)
+            print(f"  [precompute] support density "
+                  f"{learned_mask.sum() / (n * (n - 1)):.4f}  ({time.time()-t0:.1f}s)")
+            cell_rows = _run_cell('sparse_er_200_p05_ablation', G, g_seed, n, m, mean_deg,
+                                  best_known, 'timeout',
+                                  budget_value, budget_mode, 'detuning_ablation', FULL_METHOD_SEEDS,
+                                  learned_mask, prob, Y_param, X_var, save_snapshots=False)
+            all_rows.extend(cell_rows)
+            pd.DataFrame(all_rows).to_csv(csv_path, index=False)
+
+    # === Final core CSV ===
+    df = pd.DataFrame(all_rows)
+    df.to_csv(csv_path, index=False)
+    print(f"\nWrote {csv_path} ({len(df)} rows)")
+
+    # === Heterogeneity experiment ===
+    run_heterogeneity_experiment()
+
+    print("\n--- FULL PHASE 2 COMPLETE ---")
 
 # =============================================================================
 # 10. ENTRY POINT

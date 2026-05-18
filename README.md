@@ -1,6 +1,6 @@
 # Flywheel Universe
 
-![Adaptive oscillator network — local nodes synchronise under per-node coupling budgets, λ-decay prunes unreinforced edges, and persistent boundary-rider cells bridge coherent and drifting regions](readme_assets/hero_boundary_riders.png)
+![Ten-step walkthrough of the flywheel model — scarcity, local oscillators, sparse adaptive graph, Hebbian reinforcement under λ-decay, lock/drift boundary, boundary nodes as bridges, persistent topology, optimisation, coherent-and-adaptive end state](readme_assets/explainer_10panel_v3.png)
 
 **A compact set of diagnostics and control heuristics for systems that live between coherence and drift.**
 
@@ -32,10 +32,6 @@ The math applies wherever you have coupled dynamic agents under resource constra
 *Nine-step visual overview: from scarcity and local oscillators to persistent topology and boundary-node optimization.*
 
 ![Explainer — nine panels covering local oscillators, sparse adaptive graph, per-node budgets, λ-decay, budgeted Hebbian reinforcement, lock/drift boundary, local/global coherence gap, persistent H₁ topology, and optimization meaning](readme_assets/explainer_9panel.png)
-
-*Step-by-step: from scarcity and local oscillators to persistent topology and boundary-mediated optimization. Each panel shows one ingredient; the final state is stable bulk with an active living boundary.*
-
-![Ten-step visual overview of the flywheel model](readme_assets/explainer_10panel_v3.png)
 
 ---
 

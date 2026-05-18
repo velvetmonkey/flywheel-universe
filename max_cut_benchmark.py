@@ -42,10 +42,12 @@ def kuramoto_rhs_fast(t, theta, omega, K, W):
     """Vectorised Kuramoto RHS — no Python loops."""
     return omega + K * (W * np.sin(theta[np.newaxis, :] - theta[:, np.newaxis])).sum(axis=1)
 
-def hebbian_update_fast(W, theta, A_mask, dt=0.5, eta=0.05, lam=0.003, budget=1.0):
-    """Vectorised budgeted Hebbian update. exist_mask enforced by A_mask."""
+def hebbian_update_fast(W, theta, A_mask, K_sign=1.0, dt=0.5, eta=0.05, lam=0.003, budget=1.0):
+    """Vectorised budgeted Hebbian update. Sign-aware: reinforces pairs at the
+    equilibrium preferred by the coupling regime (in-phase for K>0, anti-phase
+    for K<0). exist_mask enforced by A_mask."""
     cos_diff = np.cos(theta[np.newaxis, :] - theta[:, np.newaxis])
-    W = W + dt * eta * (cos_diff - lam * W)
+    W = W + dt * eta * (K_sign * cos_diff - lam * W)
     W = np.where(A_mask, np.maximum(W, 0.0), 0.0)
     row_totals = W.sum(axis=1) + 1e-12
     scale = np.minimum(1.0, budget / row_totals)
@@ -87,7 +89,7 @@ def run_hebbian(G, K=2.0, T=50, dt=0.5, n_runs=5,
                             method='DOP853', rtol=1e-5, atol=1e-7)
             theta = sol.y[:, -1]
             t += dt
-            W = hebbian_update_fast(W, theta, A_mask, dt=dt, eta=eta, lam=lam, budget=budget)
+            W = hebbian_update_fast(W, theta, A_mask, K_sign=np.sign(K), dt=dt, eta=eta, lam=lam, budget=budget)
         best = max(best, extract_cut(G, theta))
     return best
 
@@ -98,14 +100,14 @@ G = build_test_graph(n=50, p=0.5)
 N, M = G.number_of_nodes(), G.number_of_edges()
 print(f"Graph: {N} nodes, {M} edges\n")
 
-print("Static Kuramoto (5 runs, T=50)...")
+print("Static Kuramoto (5 runs, K=-0.5, T=200)...")
 t0 = time.time()
-s = run_static(G)
+s = run_static(G, K=-0.5, T=200)
 print(f"  Best cut: {s}  ({time.time()-t0:.1f}s)\n")
 
-print("Hebbian Kuramoto (5 runs, T=50)...")
+print("Hebbian Kuramoto (5 runs, K=-0.5, T=200)...")
 t0 = time.time()
-h = run_hebbian(G)
+h = run_hebbian(G, K=-0.5, T=200)
 print(f"  Best cut: {h}  ({time.time()-t0:.1f}s)\n")
 
 print(f"Static:  {s}")

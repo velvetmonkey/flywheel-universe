@@ -33,6 +33,10 @@ The math applies wherever you have coupled dynamic agents under resource constra
 
 ![Explainer — nine panels covering local oscillators, sparse adaptive graph, per-node budgets, λ-decay, budgeted Hebbian reinforcement, lock/drift boundary, local/global coherence gap, persistent H₁ topology, and optimization meaning](readme_assets/explainer_9panel.png)
 
+*Step-by-step: from scarcity and local oscillators to persistent topology and boundary-mediated optimization. Each panel shows one ingredient; the final state is stable bulk with an active living boundary.*
+
+![Ten-step visual overview of the flywheel model](readme_assets/explainer_10panel_v3.png)
+
 ---
 
 | # | Notebook | What it does | Key result | Run |

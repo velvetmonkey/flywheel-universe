@@ -1,0 +1,14 @@
+# Phase 2 benchmark dependencies — pinned to versions used in development.
+# These suffice for both max_cut_benchmark.py (Phase 1) and
+# phase2_benchmark.py (Phase 2 — including the SDP/GW baseline via cvxpy).
+
+numpy==2.4.3
+scipy==1.17.1
+networkx==3.6.1
+pandas==3.0.3
+cvxpy==1.8.2
+
+# QP / SDP solvers used by cvxpy at runtime. Pinned for reproducibility.
+osqp==1.1.1
+scs==3.2.11
+clarabel==0.11.1

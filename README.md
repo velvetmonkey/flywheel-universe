@@ -1,5 +1,7 @@
 # Flywheel Universe
 
+![Oscillator network at the lock-drift boundary — locked clusters extruding into filaments, a few boundary-rider cells in cyan](readme_assets/hero.png)
+
 **A compact set of diagnostics and control heuristics for systems that live between coherence and drift.**
 
 Three notebooks. One inequality — `K·R_eff = |Δ|` — introduced as a local stability diagnostic in the ring, stress-tested across substrates in the meteorology notebook, and used as a structure-shaping heuristic in the universe notebook. Each notebook stands alone. Run in order for the full arc.

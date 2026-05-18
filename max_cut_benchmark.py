@@ -59,6 +59,21 @@ def extract_cut(G, theta):
     return sum(G[u][v].get('weight', 1) for u, v in G.edges()
                if assignment[u] != assignment[v])
 
+def extract_cut_best(G, theta, n_hyperplanes=100, rng=None):
+    """Best cut over n_hyperplanes random hyperplane roundings."""
+    if rng is None:
+        rng = np.random.default_rng()
+    nodes = sorted(G.nodes())
+    best = 0
+    for _ in range(n_hyperplanes):
+        angle = rng.uniform(0, 2 * np.pi)
+        assignment = {n: int(np.cos(theta[i] - angle) <= 0)
+                      for i, n in enumerate(nodes)}
+        cut = sum(G[u][v].get('weight', 1) for u, v in G.edges()
+                  if assignment[u] != assignment[v])
+        best = max(best, cut)
+    return best
+
 def run_static(G, K=2.0, T=50, n_runs=5, seed=0):
     W, _, N = graph_to_matrices(G)
     rng = np.random.default_rng(seed)
@@ -92,7 +107,43 @@ def run_hebbian(G, K=2.0, T=50, dt=0.5, n_runs=5,
             theta = sol.y[:, -1]
             t += dt
             W = hebbian_update_fast(W, theta, A_mask, K_sign=np.sign(K), dt=dt, eta=eta, lam=lam, budget=budget)
-        best = max(best, extract_cut(G, theta))
+        best = max(best, extract_cut_best(G, theta, rng=rng))
+    return best
+
+def run_hybrid(G, K=-0.5, T=200, T_prune_frac=0.3, dt=0.5, n_runs=20,
+               eta=0.05, lam=0.003, budget=None, seed=0):
+    """
+    Phase 1 (T_prune_frac * T): Hebbian adaptive coupling learns sparse W.
+    Phase 2 (remaining T): freeze W, run static Kuramoto on the learned graph.
+    """
+    _, A_mask, N = graph_to_matrices(G)
+    if budget is None:
+        budget = float(A_mask.sum(axis=1).mean())
+    deg = A_mask.sum(axis=1, keepdims=True).clip(min=1)
+    rng = np.random.default_rng(seed)
+    best = 0
+    T_prune = T * T_prune_frac
+    T_static = T * (1 - T_prune_frac)
+    for _ in range(n_runs):
+        omega = rng.normal(0, 0.3, N)
+        theta = rng.uniform(0, 2 * np.pi, N)
+        W = A_mask.astype(float) * (budget / deg)
+        # Phase 1: adaptive pruning
+        t = 0.0
+        while t < T_prune:
+            sol = solve_ivp(kuramoto_rhs_fast, (t, t+dt), theta,
+                            args=(omega, K, W),
+                            method='DOP853', rtol=1e-5, atol=1e-7)
+            theta = sol.y[:, -1]
+            t += dt
+            W = hebbian_update_fast(W, theta, A_mask, K_sign=np.sign(K),
+                                    dt=dt, eta=eta, lam=lam, budget=budget)
+        # Phase 2: freeze W, run static on the learned sparse graph
+        sol = solve_ivp(kuramoto_rhs_fast, (0, T_static), theta,
+                        args=(omega, K, W),
+                        method='DOP853', rtol=1e-6, atol=1e-8)
+        theta = sol.y[:, -1]
+        best = max(best, extract_cut_best(G, theta, rng=rng))
     return best
 
 # ── RUN ──
@@ -104,15 +155,33 @@ N, M = G.number_of_nodes(), G.number_of_edges()
 mean_deg = 2 * M / N
 print(f"Graph: {N} nodes, {M} edges, mean degree {mean_deg:.1f}\n")
 
-print("Static Kuramoto (20 runs, K=-0.5, T=200)...")
+print("Static Kuramoto (20 runs, fixed rounding)...")
 t0 = time.time()
 s = run_static(G, K=-0.5, T=200, n_runs=20)
-print(f"  Best cut: {s}  ({time.time()-t0:.1f}s)\n")
+# Post-hoc randomised rounding on a fresh solve sequence
+rng = np.random.default_rng(0)
+W_static, _, N_ = graph_to_matrices(G)
+s_rr = 0
+for _ in range(20):
+    omega = rng.normal(0, 0.3, N_)
+    theta0 = rng.uniform(0, 2*np.pi, N_)
+    sol = solve_ivp(kuramoto_rhs_fast, (0, 200), theta0,
+                    args=(omega, -0.5, W_static),
+                    method='DOP853', rtol=1e-6, atol=1e-8)
+    s_rr = max(s_rr, extract_cut_best(G, sol.y[:, -1], rng=rng))
+print(f"  Best cut (fixed): {s}   (random): {s_rr}   ({time.time()-t0:.1f}s)\n")
 
-print(f"Hebbian Kuramoto (20 runs, K=-0.5, T=200, budget=mean_deg={mean_deg:.1f})...")
+print("Hebbian Kuramoto (20 runs, randomised rounding)...")
 t0 = time.time()
 h = run_hebbian(G, K=-0.5, T=200, n_runs=20)
 print(f"  Best cut: {h}  ({time.time()-t0:.1f}s)\n")
 
-print(f"Static:  {s}")
-print(f"Hebbian: {h}  ({'+' if h >= s else ''}{h-s} vs static)")
+print("Hybrid (20 runs, 30% Hebbian prune + 70% static, randomised rounding)...")
+t0 = time.time()
+hyb = run_hybrid(G, K=-0.5, T=200, n_runs=20)
+print(f"  Best cut: {hyb}  ({time.time()-t0:.1f}s)\n")
+
+print(f"Static (fixed):   {s}")
+print(f"Static (random):  {s_rr}")
+print(f"Hebbian:          {h}")
+print(f"Hybrid:           {hyb}")

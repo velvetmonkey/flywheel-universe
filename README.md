@@ -49,14 +49,18 @@ The math applies wherever you have coupled dynamic agents under resource constra
 
 The strongest test of primitive #3 (budgeted adaptive graph update) is on a canonical NP-hard problem: Max-Cut.
 
-Three solvers compared on a 200-node Erdős–Rényi graph (942 edges, mean degree 9.4):
+We compared four solvers on a 200-node Erdős–Rényi graph (942 edges, mean degree 9.4, 20 runs, $T=200$, $K=-0.5$):
 
-- Static (fixed rounding): 678 | — | Baseline
-- Static + random hyperplanes: **688** | 90 s | +10 from rounding
-- Full Hebbian (budget = mean degree): 680 | 106 s | Matches hybrid
-- **Hybrid (30% prune + 70% static)**: **680** | **60 s** | **Best practical choice**
+| Method                              | Best Cut | Runtime | Notes |
+|-------------------------------------|----------|---------|-------|
+| Static (fixed rounding)             | 678      | —       | Baseline |
+| Static + random hyperplanes         | **688**  | 90 s    | +10 from rounding |
+| Full Hebbian (budget = mean degree) | 680      | 106 s   | Matches hybrid quality |
+| **Hybrid (30 % prune + 70 % static)** | **680** | **60 s** | **Recommended practical configuration** — same quality in 57 % of the time |
 
-The hybrid schedule matches full Hebbian quality while cutting runtime by 43% and staying within 1% of the best static result. Budgeted Hebbian adaptation acts as a practical front-end: it learns a sparse coupling graph, then static Kuramoto finishes the job faster.
+**Key takeaway**: The hybrid schedule matches full Hebbian quality while cutting runtime by 43 % and staying within 1 % of the best static result. This demonstrates that budgeted Hebbian adaptation is not just a theoretical primitive — it is a practical front-end that produces sparse, high-quality coupling graphs on which classical dynamics finish the job faster and cheaper.
+
+The benchmark script (`max_cut_benchmark.py`) is included in the repo root and can be run directly:
 
 ```bash
 python max_cut_benchmark.py

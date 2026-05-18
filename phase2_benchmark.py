@@ -491,6 +491,8 @@ def kuramoto_rhs_fast(t, theta, omega, K, W_eff):
 def run_static_ode(theta0, omega, K, W_eff, T_static):
     sol = solve_ivp(kuramoto_rhs_fast, (0, T_static), theta0, args=(omega, K, W_eff),
                     method='DOP853', rtol=1e-6, atol=1e-8)
+    if not sol.success:
+        raise RuntimeError(f"solve_ivp failed: {sol.message}")
     return sol.y[:, -1], sol.nfev
 
 def run_hebbian_staggered(theta0, W0, omega, K_sign, a_gains, prob, Y_param, X_var,
@@ -517,6 +519,8 @@ def run_hebbian_staggered(theta0, W0, omega, K_sign, a_gains, prob, Y_param, X_v
         W_eff = W * a_outer
         sol = solve_ivp(kuramoto_rhs_fast, (0, dt), theta, args=(omega, K_sign, W_eff),
                         method='DOP853', rtol=1e-5, atol=1e-7)
+        if not sol.success:
+            raise RuntimeError(f"solve_ivp failed: {sol.message}")
         theta = sol.y[:, -1]
         nfev_total += sol.nfev
 
@@ -1185,7 +1189,7 @@ def run_heterogeneity_experiment():
         learned_mask, _, _, _, _ = precompute_learned_support(G, A, mean_deg, budget_value, A_mask, n)
 
         for sigma in sigmas:
-            for m_seed in range(5):
+            for m_seed in range(10):  # match main suite seed count
                 rngs = make_rngs(g_seed, m_seed)
                 theta0 = rngs['phases'].uniform(0, 2 * np.pi, n)
                 # Lognormal with unit-mean correction (fix 4)
@@ -1204,6 +1208,8 @@ def run_heterogeneity_experiment():
                         sol = solve_ivp(kuramoto_rhs_fast, (0, 200), theta0,
                                         args=(omega, -0.5, W_eff),
                                         method='DOP853', rtol=1e-6, atol=1e-8)
+                        if not sol.success:
+                            raise RuntimeError(f"solve_ivp failed: {sol.message}")
                         cut_raw, cut_rounded, cut_polished = random_hyperplane_rounding(
                             sol.y[:, -1], A, seeds=20, rng=rngs['rounding'])
                         corr_W_inv_gain = 1.0

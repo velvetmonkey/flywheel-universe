@@ -8,7 +8,7 @@ Usage:
 
 Defaults (T=50, n_runs=5) are tuned for fast sanity checks (~seconds).
 For the real benchmark on GSet instances, call run_static / run_hebbian
-with T=200, n_runs=20.
+with T=200, n_runs=_n_runs.
 """
 
 import numpy as np
@@ -110,7 +110,7 @@ def run_hebbian(G, K=2.0, T=50, dt=0.5, n_runs=5,
         best = max(best, extract_cut_best(G, theta, rng=rng))
     return best
 
-def run_hybrid(G, K=-0.5, T=200, T_prune_frac=0.3, dt=0.5, n_runs=20,
+def run_hybrid(G, K=-0.5, T=200, T_prune_frac=0.3, dt=0.5, n_runs=_n_runs,
                eta=0.05, lam=0.003, budget=None, seed=0):
     """
     Phase 1 (T_prune_frac * T): Hebbian adaptive coupling learns sparse W.
@@ -147,22 +147,30 @@ def run_hybrid(G, K=-0.5, T=200, T_prune_frac=0.3, dt=0.5, n_runs=20,
     return best
 
 # ── RUN ──
-G = build_test_graph(n=200, p=0.05)   # sparse: 200 nodes, mean degree ~10
-# G = build_test_graph(n=50, p=0.5)    # dense baseline (static AFM is hard to beat)
-# G = load_gset('G1')                  # GSet G1 — 800 nodes, best known 11624
+import sys
+_arg = sys.argv[1] if len(sys.argv) > 1 else None
+if _arg and _arg.startswith('G') and _arg[1:].isdigit():
+    G = load_gset(_arg)                  # GSet instance, e.g. G1 (800 nodes, best known 11624)
+    _n_runs = 5
+elif _arg == 'dense':
+    G = build_test_graph(n=50, p=0.5)
+    _n_runs = 20
+else:
+    G = build_test_graph(n=200, p=0.05)  # sparse: 200 nodes, mean degree ~10
+    _n_runs = 20
 
 N, M = G.number_of_nodes(), G.number_of_edges()
 mean_deg = 2 * M / N
 print(f"Graph: {N} nodes, {M} edges, mean degree {mean_deg:.1f}\n")
 
-print("Static Kuramoto (20 runs, fixed rounding)...")
+print(f"Static Kuramoto ({_n_runs} runs, fixed rounding)...")
 t0 = time.time()
-s = run_static(G, K=-0.5, T=200, n_runs=20)
+s = run_static(G, K=-0.5, T=200, n_runs=_n_runs)
 # Post-hoc randomised rounding on a fresh solve sequence
 rng = np.random.default_rng(0)
 W_static, _, N_ = graph_to_matrices(G)
 s_rr = 0
-for _ in range(20):
+for _ in range(_n_runs):
     omega = rng.normal(0, 0.3, N_)
     theta0 = rng.uniform(0, 2*np.pi, N_)
     sol = solve_ivp(kuramoto_rhs_fast, (0, 200), theta0,
@@ -171,14 +179,14 @@ for _ in range(20):
     s_rr = max(s_rr, extract_cut_best(G, sol.y[:, -1], rng=rng))
 print(f"  Best cut (fixed): {s}   (random): {s_rr}   ({time.time()-t0:.1f}s)\n")
 
-print("Hebbian Kuramoto (20 runs, randomised rounding)...")
+print(f"Hebbian Kuramoto ({_n_runs} runs, randomised rounding)...")
 t0 = time.time()
-h = run_hebbian(G, K=-0.5, T=200, n_runs=20)
+h = run_hebbian(G, K=-0.5, T=200, n_runs=_n_runs)
 print(f"  Best cut: {h}  ({time.time()-t0:.1f}s)\n")
 
-print("Hybrid (20 runs, 30% Hebbian prune + 70% static, randomised rounding)...")
+print(f"Hybrid ({_n_runs} runs, 30% Hebbian prune + 70% static, randomised rounding)...")
 t0 = time.time()
-hyb = run_hybrid(G, K=-0.5, T=200, n_runs=20)
+hyb = run_hybrid(G, K=-0.5, T=200, n_runs=_n_runs)
 print(f"  Best cut: {hyb}  ({time.time()-t0:.1f}s)\n")
 
 print(f"Static (fixed):   {s}")

@@ -1,6 +1,6 @@
 # Flywheel Universe
 
-![Oscillator network at the lock-drift boundary — locked clusters extruding into filaments, a few boundary-rider cells in cyan](readme_assets/hero.png)
+![Adaptive oscillator network — local nodes synchronise under per-node coupling budgets, λ-decay prunes unreinforced edges, and persistent boundary-rider cells bridge coherent and drifting regions](readme_assets/hero_boundary_riders.png)
 
 **A compact set of diagnostics and control heuristics for systems that live between coherence and drift.**
 
@@ -29,9 +29,9 @@ Six reusable algorithmic primitives for any network that exhibits coherence, dri
 
 The math applies wherever you have coupled dynamic agents under resource constraints: power grids, brain networks, weather ensembles, distributed systems, swarm robotics. The notebooks are the demonstration. The primitives are the payload.
 
-*The concept, visualised: gold nodes = locked coherent clusters, teal/violet = boundary riders at the structural junctions, filaments = the adaptive sparse graph.*
+*Nine-step visual overview: from scarcity and local oscillators to persistent topology and boundary-node optimization.*
 
-![Explainer — boundary riders as structural junctions between coherent clusters](readme_assets/explainer.png)
+![Explainer — nine panels covering local oscillators, sparse adaptive graph, per-node budgets, λ-decay, budgeted Hebbian reinforcement, lock/drift boundary, local/global coherence gap, persistent H₁ topology, and optimization meaning](readme_assets/explainer_9panel.png)
 
 ---
 
@@ -133,9 +133,7 @@ The third notebook supplies the missing ingredient (dissipation, via λ-decay on
 
 ## Why it matters
 
-The diagnostics are real. `K·R_eff = |Δ|` usefully tracks lock-drift transitions across 1D rings, 2D tori, scale-free graphs, and hierarchical multi-scale networks. Chimera states, twisted attractors, and boundary riders are well-studied dynamical-systems objects with a live literature in EEG/fMRI metastability, power grid synchronisation, and swarm coordination.
-
-The interpretation — that this scaffolding applies to any particular physical system — is a hypothesis to test, not a claim. The Gaussian control in the meteorology notebook explicitly kills the "universal coarsening" framing. Read the captions; don't extend past what the simulations show.
+The diagnostics are real. `K·R_eff = |Δ|` usefully tracks lock-drift transitions across 1D rings, 2D tori, scale-free graphs, and hierarchical multi-scale networks. The interpretation — that this scaffolding applies to any particular physical system — is a hypothesis to test, not a claim. Read the captions; don't extend past what the simulations show.
 
 ## Run it
 

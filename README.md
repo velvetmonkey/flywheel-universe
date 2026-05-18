@@ -1,6 +1,8 @@
 # Flywheel Universe
 
-![Ten-step walkthrough of the flywheel model — scarcity, local oscillators, sparse adaptive graph, Hebbian reinforcement under λ-decay, lock/drift boundary, boundary nodes as bridges, persistent topology, optimisation, coherent-and-adaptive end state](readme_assets/explainer_10panel_v3.png)
+*Step-by-step: from scarcity and local oscillators to persistent topology and boundary-mediated optimization. Panel 10 includes the key benchmark result: at budget = mean degree, performance matches static Kuramoto while using far fewer active connections.*
+
+![Ten-step visual overview of the flywheel model](readme_assets/explainer_10panel_v4.png)
 
 **A compact set of diagnostics and control heuristics for systems that live between coherence and drift.**
 

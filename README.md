@@ -1,5 +1,7 @@
 # Hybrid Adaptive Calibration under Bounded Oscillator Coupling Budgets
 
+[![Lyapunov Descent](https://img.shields.io/badge/theorem-Lean%204%20verified-brightgreen)](lean/RequestProject/LyapunovDescent.lean)
+
 ## 1. What this is
 
 This repository studies budgeted Hebbian Kuramoto dynamics with a fixed sparsity support and symmetric-Frobenius projection. The model maintains a symmetric coupling matrix on a fixed edge mask, with per-node row-sum budgets enforced by exact projection at every step of an alternating phase / weight update. The contribution is a constrained descent flow on the joint state `(θ, W)` with an identified Lyapunov function, a hybrid freeze schedule that splits adaptive weight learning from fixed-weight phase settling, and a hardware-constraint framing in which the per-node budget represents the physical coupling-resource limit of an oscillator-based Ising machine. This is not a state-of-the-art Max-Cut solver, not a device-native learning law, and not a validated hardware primitive.

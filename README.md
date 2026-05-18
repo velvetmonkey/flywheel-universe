@@ -1,6 +1,6 @@
 # Hybrid Adaptive Calibration under Bounded Oscillator Coupling Budgets
 
-[![Lyapunov Descent](https://img.shields.io/badge/theorem-Lean%204%20verified-brightgreen)](lean/RequestProject/LyapunovDescent.lean)
+The algebraic core of the descent argument has been machine-verified in Lean 4 / Mathlib ([lean/RequestProject/LyapunovDescent.lean](lean/RequestProject/LyapunovDescent.lean)). The formalization establishes convexity and closedness of the constraint set, the key symmetry-based phase contribution identity, and the descent conclusion under explicit hypotheses on the dL/dt decomposition and the projection's variational inequality. Closing the remaining gaps (weight dynamics, chain-rule derivation, projection existence, full KKT stationarity) is the next formalisation step — see open issues.
 
 ## 1. What this is
 

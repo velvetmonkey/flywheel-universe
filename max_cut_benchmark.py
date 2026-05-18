@@ -94,8 +94,9 @@ def run_hebbian(G, K=2.0, T=50, dt=0.5, n_runs=5,
     return best
 
 # ── RUN ──
-G = build_test_graph(n=50, p=0.5)
-# G = load_gset('G1')  # uncomment for real benchmark
+G = build_test_graph(n=200, p=0.05)   # sparse: 200 nodes, mean degree ~10
+# G = build_test_graph(n=50, p=0.5)    # dense baseline (static AFM is hard to beat)
+# G = load_gset('G1')                  # GSet G1 — 800 nodes, best known 11624
 
 N, M = G.number_of_nodes(), G.number_of_edges()
 print(f"Graph: {N} nodes, {M} edges\n")

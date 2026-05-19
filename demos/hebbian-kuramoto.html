@@ -368,7 +368,7 @@
   <div class="panel">
     <label>Nodes</label>
     <div class="slider-wrap">
-      <input type="range" id="nodeN" min="0" max="3" step="1" value="1">
+      <input type="range" id="nodeN" min="0" max="5" step="1" value="2">
       <div id="nodeNValue" class="slider-value">14</div>
     </div>
   </div>
@@ -407,7 +407,9 @@
   //  CONFIGURATION
   // ────────────────────────────────────────────────────────────────────────
   let   N            = 14;          // number of oscillators (mutable via NODES slider)
-  const N_OPTIONS    = [8, 14, 20, 32];
+  const N_OPTIONS    = [8, 12, 14, 20, 24, 32];
+  const N_ISLAND_DEFAULT = 12;      // island chain prefers smaller N (4 nodes per cluster)
+  const N_ISLAND_MAX     = 24;      // island chain clamps slider to this
   const DT           = 0.035;       // integration timestep
   const SUBSTEPS     = 2;           // physics steps per frame
   const OMEGA_MEAN   = 1.0;         // natural frequency centre
@@ -603,7 +605,7 @@
     } else if (topology === 'island') {
       // Three clusters in a triangle around the canvas; one bridge per cluster.
       const sizes      = islandClusterSizes();
-      const clusterR   = RING_R * 0.62;     // distance from canvas centre to each cluster centre
+      const clusterR   = RING_R * 0.81;     // distance from canvas centre to each cluster centre (~30% wider than base)
       const innerR     = Math.max(28, Math.min(70, 220 / Math.max(sizes[0], 1)));
       const bridges    = [];
       let   nodeIdx    = 0;
@@ -1054,9 +1056,27 @@
   $perturbN.addEventListener('input', () => $perturbNValue.textContent = $perturbN.value);
   $perturbBtn.addEventListener('click', () => perturb(parseInt($perturbN.value, 10)));
   $resetBtn.addEventListener('click', () => init());
+  // Island chain is dense per cluster, so large N becomes visually unreadable.
+  // When switching topology, clamp the NODES slider's max + snap N to a sane
+  // default if the current value is out of range for the new topology.
+  function applyTopologyNodeConstraints () {
+    if (topology === 'island') {
+      const maxIdx = N_OPTIONS.indexOf(N_ISLAND_MAX);
+      $nodeN.max = String(maxIdx);
+      if (N > N_ISLAND_MAX) {
+        N = N_ISLAND_DEFAULT;
+        $nodeN.value = String(N_OPTIONS.indexOf(N_ISLAND_DEFAULT));
+        $nodeNValue.textContent = N;
+      }
+    } else {
+      $nodeN.max = String(N_OPTIONS.length - 1);
+    }
+  }
+
   $topoBtns.forEach(btn => btn.addEventListener('click', () => {
     topology = btn.dataset.topo;
     $topoBtns.forEach(b => b.classList.toggle('active', b === btn));
+    applyTopologyNodeConstraints();
     init();
   }));
   $speedBtns.forEach(btn => btn.addEventListener('click', () => {

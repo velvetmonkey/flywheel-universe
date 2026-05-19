@@ -408,9 +408,10 @@
   // ────────────────────────────────────────────────────────────────────────
   let   N            = 14;          // number of oscillators (mutable via NODES slider)
   const N_OPTIONS    = [8, 12, 14, 20, 24, 32];
-  const N_ISLAND_DEFAULT = 24;      // island chain prefers ~4 nodes per cluster (6 clusters)
+  const N_ISLAND_DEFAULT = 24;      // island chain prefers ~3 nodes per cluster (8 clusters)
   const N_ISLAND_MAX     = 32;      // island chain clamps slider to this
-  const N_ISLAND_CLUSTERS = 6;      // number of clusters in the amoeba chain
+  const N_ISLAND_CLUSTERS = 8;      // number of clusters in the amoeba chain
+  const K_BRIDGE_INIT     = 0.4;    // bridge-edge K at init — 10× K_INIT so all chain links render from the start
   const DT           = 0.035;       // integration timestep
   const SUBSTEPS     = 2;           // physics steps per frame
   const OMEGA_MEAN   = 1.0;         // natural frequency centre
@@ -458,6 +459,7 @@
   const stableTime = [];        // NxN — sim-seconds each pair has been stable (for senescence)
   let nodeRoles    = [];        // per-node 'hub' | 'bridge' | null (for labels + special layout)
   let nodeXY       = [];        // per-node {x, y} — topology-dependent canvas position
+  let bridgePairs  = [];        // [[i,j], ...] — pairs that should seed at K_BRIDGE_INIT (island chain)
   let topology     = 'ring';    // 'full' | 'ring' | 'sparse' | 'hub' | 'island'
   let speedMult    = 1.0;       // simulation speed multiplier
   let senescence   = false;     // second-order Hebbian decay on stable pairs
@@ -560,8 +562,9 @@
   function buildTopologyMask () {
     ALLOWED.length = 0;
     for (let i = 0; i < N; i++) ALLOWED.push(new Array(N).fill(false));
-    nodeRoles = new Array(N).fill(null);
-    nodeXY    = new Array(N);
+    nodeRoles   = new Array(N).fill(null);
+    nodeXY      = new Array(N);
+    bridgePairs = [];
 
     // Default ring layout — overridden below for hub/island
     const ringLayout = () => {
@@ -650,10 +653,14 @@
             ALLOWED[i][j] = true; ALLOWED[j][i] = true;
           }
       }
-      // Closed bridge ring — each bridge connects to the next, last wraps to first
+      // Closed bridge ring — each bridge connects to the next, last wraps to first.
+      // Tracked in bridgePairs so init() can seed them at K_BRIDGE_INIT (above the
+      // draw threshold) so the full chain renders immediately instead of waiting
+      // for Hebbian growth to lift half-decayed antiphase pairs into view.
       for (let c = 0; c < bridges.length; c++) {
         const a = bridges[c], b = bridges[(c + 1) % bridges.length];
         ALLOWED[a][b] = true; ALLOWED[b][a] = true;
+        bridgePairs.push([a, b]);
       }
     }
   }
@@ -681,6 +688,11 @@
       for (let j = 0; j < N; j++) if (ALLOWED[i][j]) row[j] = K_INIT;
       K.push(row);
       stableTime.push(new Array(N).fill(0));
+    }
+    // Bridge pairs (island chain) get a higher initial K so every chain link
+    // is visible from t=0 instead of half-fading away during Hebbian sort-out.
+    for (const [a, b] of bridgePairs) {
+      K[a][b] = K_BRIDGE_INIT; K[b][a] = K_BRIDGE_INIT;
     }
     // Keep perturb-count slider bounded by current N
     const maxPerturb = Math.max(2, N - (N % 2));

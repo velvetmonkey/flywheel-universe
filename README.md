@@ -45,6 +45,12 @@ python phase2_benchmark.py pilot
 
 *Theory note and benchmark paper in preparation. Zenodo DOI will be added here.*
 
+## Interactive Demo
+
+Open [demos/hebbian-kuramoto.html](demos/hebbian-kuramoto.html) in a browser to see Hebbian synchronisation in action.
+
+A network of Kuramoto oscillators synchronises via Hebbian learning. Click any node to perturb it — the network remembers and pulls it back. Use the stress test to find the basin boundary.
+
 ---
 
 Earlier framing of this repository — the universe / boundary-rider / cosmology-web analogies, the "six primitives" rhetoric, and the pre-Phase-2 Max-Cut numbers — is preserved in [`EXPLORATORY_NOTES.md`](EXPLORATORY_NOTES.md) and is not part of the main technical claim.

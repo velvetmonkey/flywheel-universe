@@ -1,0 +1,15 @@
+name: Sync demo to docs
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'demos/hebbian-kuramoto.html'
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp demos/hebbian-kuramoto.html docs/index.html
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "docs: sync demo from demos/hebbian-kuramoto.html"

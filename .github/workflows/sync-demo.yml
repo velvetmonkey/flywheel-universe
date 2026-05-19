@@ -4,6 +4,8 @@ on:
     branches: [main]
     paths:
       - 'demos/hebbian-kuramoto.html'
+permissions:
+  contents: write
 jobs:
   sync:
     runs-on: ubuntu-latest

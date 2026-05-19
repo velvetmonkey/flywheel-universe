@@ -109,7 +109,7 @@
 
   .controls {
     width: 100%;
-    max-width: 620px;
+    max-width: 720px;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -312,7 +312,7 @@
 </header>
 
 <div class="stage">
-  <canvas id="c" width="620" height="620"></canvas>
+  <canvas id="c" width="720" height="720"></canvas>
 
   <div class="hud tl">
     <div class="row"><span class="label">SYNCHRONY</span> <span id="sync" class="val" style="color:var(--gold)">0%</span></div>
@@ -368,7 +368,7 @@
   <div class="panel">
     <label>Nodes</label>
     <div class="slider-wrap">
-      <input type="range" id="nodeN" min="0" max="3" step="1" value="1">
+      <input type="range" id="nodeN" min="0" max="5" step="1" value="2">
       <div id="nodeNValue" class="slider-value">14</div>
     </div>
   </div>
@@ -407,7 +407,11 @@
   //  CONFIGURATION
   // ────────────────────────────────────────────────────────────────────────
   let   N            = 14;          // number of oscillators (mutable via NODES slider)
-  const N_OPTIONS    = [8, 14, 20, 32];
+  const N_OPTIONS    = [8, 12, 14, 20, 24, 32];
+  const N_ISLAND_DEFAULT = 24;      // island chain prefers ~3 nodes per cluster (8 clusters)
+  const N_ISLAND_MAX     = 32;      // island chain clamps slider to this
+  const N_ISLAND_CLUSTERS = 8;      // number of clusters in the amoeba chain
+  const K_BRIDGE_INIT     = 0.4;    // bridge-edge K at init — 10× K_INIT so all chain links render from the start
   const DT           = 0.035;       // integration timestep
   const SUBSTEPS     = 2;           // physics steps per frame
   const OMEGA_MEAN   = 1.0;         // natural frequency centre
@@ -455,6 +459,7 @@
   const stableTime = [];        // NxN — sim-seconds each pair has been stable (for senescence)
   let nodeRoles    = [];        // per-node 'hub' | 'bridge' | null (for labels + special layout)
   let nodeXY       = [];        // per-node {x, y} — topology-dependent canvas position
+  let bridgePairs  = [];        // [[i,j], ...] — pairs that should seed at K_BRIDGE_INIT (island chain)
   let topology     = 'ring';    // 'full' | 'ring' | 'sparse' | 'hub' | 'island'
   let speedMult    = 1.0;       // simulation speed multiplier
   let senescence   = false;     // second-order Hebbian decay on stable pairs
@@ -470,7 +475,7 @@
   const ctx    = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
   const CX = W / 2, CY = H / 2;
-  const RING_R = 240;
+  const RING_R = 280;
   const NODE_R = 15;
 
   const $sync          = document.getElementById('sync');
@@ -544,19 +549,22 @@
   // ────────────────────────────────────────────────────────────────────────
   //  SIMULATION
   // ────────────────────────────────────────────────────────────────────────
-  // Cluster sizes for island chain — proportional to N, three clusters
+  // Cluster sizes for island chain — N split as evenly as possible across
+  // N_ISLAND_CLUSTERS clusters. Remainder is distributed to the first few
+  // clusters so size differences are at most 1.
   function islandClusterSizes () {
-    const a = Math.ceil(N / 3);
-    const b = Math.ceil((N - a) / 2);
-    const c = N - a - b;
-    return [a, b, c];
+    const K    = N_ISLAND_CLUSTERS;
+    const base = Math.floor(N / K);
+    const rem  = N % K;
+    return Array.from({ length: K }, (_, i) => base + (i < rem ? 1 : 0));
   }
 
   function buildTopologyMask () {
     ALLOWED.length = 0;
     for (let i = 0; i < N; i++) ALLOWED.push(new Array(N).fill(false));
-    nodeRoles = new Array(N).fill(null);
-    nodeXY    = new Array(N);
+    nodeRoles   = new Array(N).fill(null);
+    nodeXY      = new Array(N);
+    bridgePairs = [];
 
     // Default ring layout — overridden below for hub/island
     const ringLayout = () => {
@@ -601,40 +609,58 @@
         ALLOWED[0][i] = true; ALLOWED[i][0] = true;
       }
     } else if (topology === 'island') {
-      // Three clusters in a triangle around the canvas; one bridge per cluster.
+      // Amoeba layout — N_ISLAND_CLUSTERS clusters arranged roughly hexagonally
+      // around the canvas, with deterministic radial + angular jitter so the
+      // outline reads organic rather than geometric. Bridges form a closed
+      // ring (cluster k ↔ k+1 mod K), giving the chain a blobby loop topology
+      // where consensus has to walk around the amoeba's perimeter.
+      const K          = N_ISLAND_CLUSTERS;
       const sizes      = islandClusterSizes();
-      const clusterR   = RING_R * 0.62;     // distance from canvas centre to each cluster centre
-      const innerR     = Math.max(28, Math.min(70, 220 / Math.max(sizes[0], 1)));
+      const clusterR   = RING_R * 0.88;     // pulled in slightly to leave headroom for amoeba jitter
+      const maxSize    = Math.max(...sizes, 1);
+      const innerR     = Math.max(26, Math.min(48, 200 / maxSize));   // wider intra-cluster spacing than before
       const bridges    = [];
       let   nodeIdx    = 0;
-      for (let c = 0; c < 3; c++) {
-        const size      = sizes[c];
-        const cAng      = (c / 3) * TAU - Math.PI / 2;
-        const ccx       = CX + Math.cos(cAng) * clusterR;
-        const ccy       = CY + Math.sin(cAng) * clusterR;
+      for (let c = 0; c < K; c++) {
+        const size         = sizes[c];
+        const baseAng      = (c / K) * TAU - Math.PI / 2;
+        // Deterministic per-cluster perturbations (sin/cos of cluster index)
+        const radialFactor = 1 + 0.14 * Math.sin(c * 2.3 + 0.7);
+        const angleOffset  = 0.18 * Math.cos(c * 1.9 + 1.4);
+        const cAng         = baseAng + angleOffset;
+        const cR           = clusterR * radialFactor;
+        const ccx          = CX + Math.cos(cAng) * cR;
+        const ccy          = CY + Math.sin(cAng) * cR;
         const clusterStart = nodeIdx;
         const bridgeLocal  = Math.floor(size / 2);
         const bridgeIdx    = clusterStart + bridgeLocal;
         bridges.push(bridgeIdx);
         nodeRoles[bridgeIdx] = 'bridge';
-        // Place this cluster's nodes as a small ring around (ccx,ccy).
-        // Bridge sits facing the canvas centre so cross-cluster edges look clean.
-        for (let k = 0; k < size; k++) {
-          const localOffset = k - bridgeLocal;
-          const a = cAng + Math.PI + (localOffset / Math.max(size, 1)) * TAU;
-          nodeXY[nodeIdx] = { x: ccx + Math.cos(a) * innerR, y: ccy + Math.sin(a) * innerR };
-          nodeIdx++;
+        if (size === 1) {
+          // Single-node "cluster" — just place the node at the cluster centre
+          nodeXY[nodeIdx++] = { x: ccx, y: ccy };
+        } else {
+          // Mini-ring around (ccx, ccy); bridge faces the canvas centre
+          for (let k = 0; k < size; k++) {
+            const localOffset = k - bridgeLocal;
+            const a = cAng + Math.PI + (localOffset / size) * TAU;
+            nodeXY[nodeIdx++] = { x: ccx + Math.cos(a) * innerR, y: ccy + Math.sin(a) * innerR };
+          }
         }
-        // Tight intra-cluster connections (fully connected within the cluster)
+        // Fully connected within the cluster
         for (let i = clusterStart; i < clusterStart + size; i++)
           for (let j = i + 1; j < clusterStart + size; j++) {
             ALLOWED[i][j] = true; ALLOWED[j][i] = true;
           }
       }
-      // Bridge chain: each bridge connects to the next bridge only
-      for (let c = 0; c < bridges.length - 1; c++) {
-        const a = bridges[c], b = bridges[c + 1];
+      // Closed bridge ring — each bridge connects to the next, last wraps to first.
+      // Tracked in bridgePairs so init() can seed them at K_BRIDGE_INIT (above the
+      // draw threshold) so the full chain renders immediately instead of waiting
+      // for Hebbian growth to lift half-decayed antiphase pairs into view.
+      for (let c = 0; c < bridges.length; c++) {
+        const a = bridges[c], b = bridges[(c + 1) % bridges.length];
         ALLOWED[a][b] = true; ALLOWED[b][a] = true;
+        bridgePairs.push([a, b]);
       }
     }
   }
@@ -662,6 +688,11 @@
       for (let j = 0; j < N; j++) if (ALLOWED[i][j]) row[j] = K_INIT;
       K.push(row);
       stableTime.push(new Array(N).fill(0));
+    }
+    // Bridge pairs (island chain) get a higher initial K so every chain link
+    // is visible from t=0 instead of half-fading away during Hebbian sort-out.
+    for (const [a, b] of bridgePairs) {
+      K[a][b] = K_BRIDGE_INIT; K[b][a] = K_BRIDGE_INIT;
     }
     // Keep perturb-count slider bounded by current N
     const maxPerturb = Math.max(2, N - (N % 2));
@@ -1054,9 +1085,27 @@
   $perturbN.addEventListener('input', () => $perturbNValue.textContent = $perturbN.value);
   $perturbBtn.addEventListener('click', () => perturb(parseInt($perturbN.value, 10)));
   $resetBtn.addEventListener('click', () => init());
+  // Island chain is dense per cluster, so large N becomes visually unreadable.
+  // When switching topology, clamp the NODES slider's max + snap N to a sane
+  // default if the current value is out of range for the new topology.
+  function applyTopologyNodeConstraints () {
+    if (topology === 'island') {
+      const maxIdx = N_OPTIONS.indexOf(N_ISLAND_MAX);
+      $nodeN.max = String(maxIdx);
+      if (N > N_ISLAND_MAX) {
+        N = N_ISLAND_DEFAULT;
+        $nodeN.value = String(N_OPTIONS.indexOf(N_ISLAND_DEFAULT));
+        $nodeNValue.textContent = N;
+      }
+    } else {
+      $nodeN.max = String(N_OPTIONS.length - 1);
+    }
+  }
+
   $topoBtns.forEach(btn => btn.addEventListener('click', () => {
     topology = btn.dataset.topo;
     $topoBtns.forEach(b => b.classList.toggle('active', b === btn));
+    applyTopologyNodeConstraints();
     init();
   }));
   $speedBtns.forEach(btn => btn.addEventListener('click', () => {

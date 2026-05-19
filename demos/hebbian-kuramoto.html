@@ -109,7 +109,7 @@
 
   .controls {
     width: 100%;
-    max-width: 620px;
+    max-width: 720px;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -312,7 +312,7 @@
 </header>
 
 <div class="stage">
-  <canvas id="c" width="620" height="620"></canvas>
+  <canvas id="c" width="720" height="720"></canvas>
 
   <div class="hud tl">
     <div class="row"><span class="label">SYNCHRONY</span> <span id="sync" class="val" style="color:var(--gold)">0%</span></div>
@@ -472,7 +472,7 @@
   const ctx    = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
   const CX = W / 2, CY = H / 2;
-  const RING_R = 240;
+  const RING_R = 280;
   const NODE_R = 15;
 
   const $sync          = document.getElementById('sync');
@@ -605,8 +605,8 @@
     } else if (topology === 'island') {
       // Three clusters in a triangle around the canvas; one bridge per cluster.
       const sizes      = islandClusterSizes();
-      const clusterR   = RING_R * 0.81;     // distance from canvas centre to each cluster centre (~30% wider than base)
-      const innerR     = Math.max(28, Math.min(70, 220 / Math.max(sizes[0], 1)));
+      const clusterR   = RING_R * 1.05;     // distance from canvas centre to each cluster centre (~50% wider than the previous 0.81×240 baseline)
+      const innerR     = Math.max(24, Math.min(48, 170 / Math.max(sizes[0], 1)));
       const bridges    = [];
       let   nodeIdx    = 0;
       for (let c = 0; c < 3; c++) {

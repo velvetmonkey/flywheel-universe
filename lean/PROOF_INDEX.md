@@ -55,7 +55,10 @@ Status legend:
 
 ## Caveats and out-of-scope (for this Lean snapshot)
 
-- `hWeight_diff` requires **everywhere two-sided** differentiability of weights, which is **stronger** than the canonical projected-gradient ODE (whose velocity can jump on contact with `∂C`). This restricts the `Trajectory` type to curves with no transversal boundary contact. Adequate for the present descent argument; not a full formalisation of measure-theoretic projected flow.
+- **Caveat — `hWeight_diff` (two-sided differentiability):**
+  The current proof of `hW_descent_derived` (`LyapunovDescent.lean` lines 533–537) uses a Fermat-at-interior-extremum argument that requires `hWeight_diff` to assert everywhere two-sided (`HasDerivAt`) differentiability of the weight trajectory. This is stronger than canonical projected-gradient flow, where velocity can jump at boundary contact with `∂C`.
+
+  The clean resolution requires tangent/normal cone calculus for the specific polyhedral `constraintSet` (row-sum budget + nonneg + support + symmetry + zero diagonal) plus a Moreau decomposition lemma. Neither exists in Mathlib v4.28.0 (the version pinned in `lakefile.toml`) for this constraint shape. Estimated new infrastructure: ~500–1500 lines. Tracked for future work — see `RequestProject/FutureWork.lean`.
 - Existence and uniqueness of the projected-gradient ODE solution.
 - The Moreau decomposition for tangent / normal cones of `constraintSet`.
 - Continuous dependence of `lyapunovGradW` on `(θ, W)` propagated through `Filter.Tendsto` (needed for Issue #4 full-KKT).

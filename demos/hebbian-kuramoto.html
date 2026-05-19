@@ -319,7 +319,7 @@
   const OMEGA_MEAN   = 1.0;         // natural frequency centre
   const OMEGA_SPREAD = 0.08;        // natural frequency spread
   const K_INIT       = 0.04;        // initial coupling strength
-  const K_MAX        = 3.6;         // saturation cap
+  const K_MAX        = 1.62;        // saturation cap
   const HEBB_RATE    = 0.22;        // dK/dt ∝ cos(θ_i − θ_j) growth
   const HEBB_DECAY   = 0.025;       // gentle decay pulling K → 0
   const RESYNC_TOL   = 0.28;        // |Δθ| considered resynced
@@ -451,7 +451,7 @@
       }
       dtheta[i] = osc[i].omega + sum / N;
     }
-    for (let i = 0; i < N; i++) osc[i].theta = wrap(osc[i].theta + dtheta[i] * DT);
+    for (let i = 0; i < N; i++) osc[i].theta = wrap(osc[i].theta + dtheta[i] * DT + (Math.random() - 0.5) * 0.008);
 
     // Hebbian: dK_ij/dt = ε cos(θ_i − θ_j) − γ K_ij    (symmetric)
     for (let i = 0; i < N; i++) {

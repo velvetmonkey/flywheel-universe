@@ -218,6 +218,31 @@
   }
   button.ghost:hover { color: var(--ink); border-color: #3a3a52; }
 
+  .seg-group {
+    display: flex;
+    gap: 4px;
+    flex: 1;
+    flex-wrap: wrap;
+  }
+  button.seg {
+    background: var(--panel-2);
+    color: var(--ink-3);
+    border: 1px solid var(--line);
+    padding: 7px 10px;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    flex: 1;
+    min-width: 0;
+  }
+  button.seg:hover { color: var(--ink-2); border-color: #3a3a52; background: var(--panel-2); }
+  button.seg.active {
+    background: var(--gold);
+    color: #0a0a0f;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(212,175,55,0.15);
+  }
+  button.seg.active:hover { background: var(--gold-2); color: #0a0a0f; }
+
   .legend {
     display: flex;
     gap: 18px;
@@ -287,6 +312,15 @@
   </div>
 
   <div class="panel">
+    <label>Topology</label>
+    <div class="seg-group">
+      <button class="seg" data-topo="full">Fully&nbsp;Connected</button>
+      <button class="seg active" data-topo="ring">Ring</button>
+      <button class="seg" data-topo="sparse">Sparse&nbsp;Random</button>
+    </div>
+  </div>
+
+  <div class="panel">
     <label>Perturb count</label>
     <div class="slider-wrap">
       <input type="range" id="perturbN" min="2" max="14" step="2" value="6">
@@ -343,11 +377,13 @@
   // ────────────────────────────────────────────────────────────────────────
   //  STATE
   // ────────────────────────────────────────────────────────────────────────
-  const osc = [];               // oscillator array
-  const K   = [];               // NxN symmetric coupling matrix
-  let simTime = 0;
-  let paused  = false;
-  let scenario = null;          // active perturbation scenario, or null
+  const osc     = [];           // oscillator array
+  const K       = [];           // NxN symmetric coupling matrix
+  const ALLOWED = [];           // NxN boolean — which pairs may couple (topology mask)
+  let topology  = 'ring';       // 'full' | 'ring' | 'sparse'
+  let simTime   = 0;
+  let paused    = false;
+  let scenario  = null;         // active perturbation scenario, or null
 
   // ────────────────────────────────────────────────────────────────────────
   //  DOM
@@ -370,6 +406,7 @@
   const $perturbBtn    = document.getElementById('perturbBtn');
   const $resetBtn      = document.getElementById('resetBtn');
   const $pauseBtn      = document.getElementById('pauseBtn');
+  const $topoBtns      = document.querySelectorAll('button.seg');
 
   // High-DPI handling
   (function setupHiDPI () {
@@ -408,21 +445,55 @@
   }
 
   function meanCoupling () {
+    // Average only over allowed pairs so HUD tiers stay meaningful under
+    // sparse topologies (otherwise the zero-pinned disallowed pairs swamp the mean).
     let s = 0, c = 0;
     for (let i = 0; i < N; i++)
-      for (let j = i + 1; j < N; j++) { s += K[i][j]; c++; }
-    return s / c;
+      for (let j = i + 1; j < N; j++) {
+        if (!ALLOWED[i][j]) continue;
+        s += K[i][j]; c++;
+      }
+    return c === 0 ? 0 : s / c;
   }
 
   // ────────────────────────────────────────────────────────────────────────
   //  SIMULATION
   // ────────────────────────────────────────────────────────────────────────
+  function buildTopologyMask () {
+    ALLOWED.length = 0;
+    for (let i = 0; i < N; i++) ALLOWED.push(new Array(N).fill(false));
+
+    if (topology === 'full') {
+      for (let i = 0; i < N; i++)
+        for (let j = 0; j < N; j++)
+          if (i !== j) ALLOWED[i][j] = true;
+    } else if (topology === 'ring') {
+      // Each node couples only to its 2 nearest ring neighbours
+      for (let i = 0; i < N; i++) {
+        const left  = (i - 1 + N) % N;
+        const right = (i + 1) % N;
+        ALLOWED[i][left]  = true; ALLOWED[left][i]  = true;
+        ALLOWED[i][right] = true; ALLOWED[right][i] = true;
+      }
+    } else if (topology === 'sparse') {
+      // Symmetric Erdős–Rényi mask with edge probability tuned so
+      // mean degree ≈ N/2 (half the fully-connected mean degree).
+      const p = N / (2 * (N - 1));
+      for (let i = 0; i < N; i++) {
+        for (let j = i + 1; j < N; j++) {
+          if (Math.random() < p) { ALLOWED[i][j] = true; ALLOWED[j][i] = true; }
+        }
+      }
+    }
+  }
+
   function init () {
     osc.length = 0;
     K.length   = 0;
     simTime    = 0;
     scenario   = null;
     renderVerdict(null);
+    buildTopologyMask();
     for (let i = 0; i < N; i++) {
       osc.push({
         theta:        Math.random() * TAU,
@@ -434,8 +505,9 @@
       });
     }
     for (let i = 0; i < N; i++) {
-      K.push(new Array(N).fill(K_INIT));
-      K[i][i] = 0;
+      const row = new Array(N).fill(0);
+      for (let j = 0; j < N; j++) if (ALLOWED[i][j]) row[j] = K_INIT;
+      K.push(row);
     }
   }
 
@@ -451,11 +523,13 @@
       }
       dtheta[i] = osc[i].omega + sum / N;
     }
-    for (let i = 0; i < N; i++) osc[i].theta = wrap(osc[i].theta + dtheta[i] * DT + (Math.random() - 0.5) * 0.008);
+    for (let i = 0; i < N; i++) osc[i].theta = wrap(osc[i].theta + dtheta[i] * DT + (Math.random() - 0.5) * 0.024);
 
     // Hebbian: dK_ij/dt = ε cos(θ_i − θ_j) − γ K_ij    (symmetric)
+    // Only allowed pairs may grow; disallowed pairs are pinned to 0 by topology.
     for (let i = 0; i < N; i++) {
       for (let j = i + 1; j < N; j++) {
+        if (!ALLOWED[i][j]) continue;
         const align = Math.cos(osc[i].theta - osc[j].theta);
         const dK = HEBB_RATE * align - HEBB_DECAY * K[i][j];
         const v  = clamp(K[i][j] + dK * DT, 0, K_MAX);
@@ -781,6 +855,11 @@
   $perturbN.addEventListener('input', () => $perturbNValue.textContent = $perturbN.value);
   $perturbBtn.addEventListener('click', () => perturb(parseInt($perturbN.value, 10)));
   $resetBtn.addEventListener('click', () => init());
+  $topoBtns.forEach(btn => btn.addEventListener('click', () => {
+    topology = btn.dataset.topo;
+    $topoBtns.forEach(b => b.classList.toggle('active', b === btn));
+    init();
+  }));
   $pauseBtn.addEventListener('click', () => {
     paused = !paused;
     $pauseBtn.textContent = paused ? 'Resume' : 'Pause';

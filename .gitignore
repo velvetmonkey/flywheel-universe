@@ -42,3 +42,7 @@ desktop.ini
 # Claude / agent state
 .claude/
 G1
+
+# Lean build artifacts
+lean/.lake/
+lean/lake-manifest.json

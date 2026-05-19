@@ -1,0 +1,61 @@
+# Proof Index — Budgeted Hebbian Kuramoto Lean Formalisation
+
+Status legend:
+- `[OK]` proved, sorry-free
+- `[TODO]` open, sorry-bearing stub
+- `[HYP]` taken as a Trajectory hypothesis (a *field*, not a *theorem*)
+
+## Algebraic core
+
+| Result | Status | Location |
+|---|---|---|
+| `cosDiff_symm`, `sinDiff_antisymm`, `cosDiff_diag`, `sinDiff_diag` | `[OK]` | `Defs.lean` |
+| `weightGrad_eq_neg_lyapunovGradW` | `[OK]` | `Defs.lean` |
+| `phase_contribution_identity` | `[OK]` | `LyapunovDescent.lean` |
+| `phase_descent` (`K < 0 ⟹ K · Σ cf² ≤ 0`) | `[OK]` | `LyapunovDescent.lean` |
+| `lyapunovGradW_isSymm` (private helper) | `[OK]` | `LyapunovDescent.lean` |
+| `sum_full_eq_twice_upperTri` (public, reusable) | `[OK]` | `LyapunovDescent.lean` |
+
+## Constraint set
+
+| Result | Status | Location |
+|---|---|---|
+| `constraintSet_convex` | `[OK]` | `LyapunovDescent.lean` |
+| `constraintSet_isClosed` | `[OK]` | `LyapunovDescent.lean` |
+| `zero_mem_constraintSet` | `[OK]` | `LyapunovDescent.lean` |
+
+## Trajectory and weight dynamics
+
+| Result | Status | Notes |
+|---|---|---|
+| `Trajectory.Wdot`, `Trajectory.hWeight_diff` | `[OK]` (Issue #2) | Pointwise weight derivative + componentwise `HasDerivAt`. |
+| `Trajectory.hWeight_dyn` | `[HYP]` (Issue #1) | Variational-inequality hypothesis intended to support projected gradient flow `Ẇ = P_{T_C(W)}(-η∇_W L)`. Does **not** characterise PGF on its own — `Wdot ∈ T_C(W)` is not encoded as a separate usable hypothesis. Combined with `hWeight_diff` + `hW_in_C`, suffices for Issue #3 discharge via Fermat. |
+| `Trajectory.Wdot_isSymm` (private helper) | `[OK]` | Derived from `hW_in_C` symmetry + `hWeight_diff` uniqueness. |
+| `Trajectory.Wdot_diag_zero` (private helper) | `[OK]` | Derived from `hW_in_C` diagonal-zero + `hWeight_diff` uniqueness. |
+| `Trajectory.lyapunovAlong_hasDerivAt` | `[OK]` (Issue #2) | Chain rule on the explicit sum form of `lyapunovFn`; uses `phase_contribution_identity` to fold `−K · Σ W·sin·(cf_i−cf_j)` into `K · Σ cf²`. Sorry-free. |
+
+## Descent and stationarity
+
+| Result | Status | Notes |
+|---|---|---|
+| `Trajectory.hW_descent_derived` | `[OK]` (Issue #3 closed) | Weight contribution non-positivity proved via Fermat's interior extremum applied to `f(s) := ⟨W(s) − W(t), Ẇ(t) + η∇L(t)⟩`. From `hWeight_dyn` we get `f ≥ 0 ∀s` with `f(t) = 0`, so Fermat gives `f'(t) = 0`, yielding `⟨Ẇ, ∇L⟩_F = −‖Ẇ‖²/η ≤ 0`. Upper-tri restriction via `sum_full_eq_twice_upperTri` + symmetry / zero-diag of `Ẇ` and `∇L`. |
+| `lyapunov_descent` | `[OK]` | Now takes no extra hypotheses beyond `Trajectory`. `dL/dt ≤ 0` from `lyapunovAlong_hasDerivAt` + `phase_descent` + `hW_descent_derived`; monotonicity via `antitone_of_deriv_nonpos`. |
+| `limit_point_mem_constraintSet` | `[OK]` | **Set-membership only**, not full KKT stationarity. |
+| `limit_point_isKKTStationary` (full KKT) | `[TODO]` (Issue #4) | Sorry-bearing stub. Proves `W*` minimises `L(θ*, ·)` over `C`. Requires Lyapunov contraction + propagation of variational inequality at the limit. Tracked by GitHub issue #4. |
+
+## GitHub issue mapping
+
+| Issue | Title | Status |
+|---|---|---|
+| #1 | Weight dynamics field missing from `Trajectory` | **Closed** — `hWeight_dyn` + `Wdot` + `hWeight_diff` added. Doc explicitly states this is a variational-inequality *hypothesis*, not a full PGF characterisation. |
+| #2 | dL/dt decomposition taken as hypothesis, not derived | **Closed** — `lyapunovAlong_hasDerivAt` proves the chain rule sorry-free. |
+| #3 | Weight contribution non-positivity assumed via variational inequality | **Closed** — `hW_descent_derived` proves it sorry-free via Fermat's interior extremum applied to `hWeight_dyn` + `hWeight_diff` + `hW_in_C`. (Surfaced by Gemini during roundtable review; original plan was to leave it open.) |
+| #4 | KKT corollary proves set membership only, not full KKT stationarity | **Closed** (downgrade + tracked stub) — doc on `limit_point_mem_constraintSet` honestly states scope; full-KKT stub `limit_point_isKKTStationary` is sorry-bearing and tracked. |
+
+## Caveats and out-of-scope (for this Lean snapshot)
+
+- `hWeight_diff` requires **everywhere two-sided** differentiability of weights, which is **stronger** than the canonical projected-gradient ODE (whose velocity can jump on contact with `∂C`). This restricts the `Trajectory` type to curves with no transversal boundary contact. Adequate for the present descent argument; not a full formalisation of measure-theoretic projected flow.
+- Existence and uniqueness of the projected-gradient ODE solution.
+- The Moreau decomposition for tangent / normal cones of `constraintSet`.
+- Continuous dependence of `lyapunovGradW` on `(θ, W)` propagated through `Filter.Tendsto` (needed for Issue #4 full-KKT).
+- Numerical solver fidelity (handled in `phase2_benchmark.py` validation).

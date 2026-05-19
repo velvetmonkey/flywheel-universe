@@ -188,18 +188,56 @@ structure SystemConfig (n : ℕ) where
   hA_binary : ∀ i j, support i j = 0 ∨ support i j = 1
   hA_diag : ∀ i, support i i = 0
 
-/-- A trajectory of the Kuramoto-Hebbian system with differentiable Lyapunov function. -/
+/-- A trajectory of the Kuramoto-Hebbian system.
+
+  Encodes phase and weight evolution together with explicit differentiability
+  data. The weight dynamics is specified by a variational-inequality
+  hypothesis (`hWeight_dyn`) intended to model projected gradient flow on `L`
+  over the constraint set `C`; see that field's docstring for the precise
+  semantics and the load-bearing caveats. -/
 structure Trajectory (n : ℕ) (cfg : SystemConfig n) where
   /-- Phase trajectory θ(t) -/
   phases : ℝ → Fin n → ℝ
   /-- Weight trajectory W(t) -/
   weights : ℝ → Matrix (Fin n) (Fin n) ℝ
+  /-- Pointwise time derivative of the weight matrix (Issue #1, #2). -/
+  Wdot : ℝ → Matrix (Fin n) (Fin n) ℝ
   /-- Weights stay in C -/
   hW_in_C : ∀ t, weights t ∈ constraintSet n cfg.support cfg.budget
   /-- Phase dynamics: dθᵢ/dt = K · Σⱼ Wᵢⱼ sin(θⱼ - θᵢ) -/
   hPhase_dyn : ∀ t i,
     HasDerivAt (fun s => phases s i)
       (phaseDot cfg.coupling (weights t) (phases t) i) t
+  /-- (Issue #2) Each weight entry is differentiable in time, with derivative
+    `Wdot t i j`. Required for the chain-rule derivation of `dL/dt`. -/
+  hWeight_diff : ∀ t i j,
+    HasDerivAt (fun s => weights s i j) (Wdot t i j) t
+  /-- (Issue #1) Variational-inequality hypothesis intended to support projected
+    gradient flow `Ẇ = P_{T_C(W)}(-η ∇_W L)` (Option B in the Lean-issues design
+    note).
+
+    For every `V ∈ C` and every time `t`,
+      `0 ≤ ∑_{i,j} (V_ij - W(t)_ij) · (Ẇ_ij(t) + η · ∂L/∂W_ij(θ(t),W(t)))`.
+
+    Semantics. This is the normal-cone-membership condition
+      `Ẇ + η ∇_W L ∈ N_C(W(t))`
+    of projected-gradient flow. It does **not** fully characterise the
+    projected-gradient ODE on its own: tangent feasibility `Ẇ(t) ∈ T_C(W(t))`
+    is not encoded here as a separate, usable hypothesis. Combined with
+    `hWeight_diff` (everywhere two-sided differentiability) and `hW_in_C`,
+    this field is nevertheless strong enough to discharge `hW_descent` via
+    Fermat's interior extremum (see `Trajectory.hW_descent_derived`).
+
+    Caveat: requiring everywhere two-sided `hWeight_diff` is *stronger* than
+    the canonical projected-gradient ODE, whose velocity can jump on contact
+    with `∂C`. This restricts `Trajectory` to curves with no such transversal
+    boundary contact — adequate for the present descent argument but not a
+    full formalisation of measure-theoretic projected flow. -/
+  hWeight_dyn : ∀ t, ∀ V ∈ constraintSet n cfg.support cfg.budget,
+    0 ≤ ∑ i : Fin n, ∑ j : Fin n,
+      (V i j - weights t i j) *
+      (Wdot t i j +
+       cfg.learnRate * lyapunovGradW (-1) cfg.decayRate (phases t) (weights t) i j)
 
 /-- The Lyapunov function evaluated along a trajectory (using s = -1). -/
 def Trajectory.lyapunovAlong {cfg : SystemConfig n}
@@ -231,41 +269,335 @@ def weightContribution (lam : ℝ) (theta : Fin n → ℝ)
   ∑ p ∈ upperTriPairs n,
     dW p.1 p.2 * (-(-1) * Real.cos (theta p.1 - theta p.2) + lam * W p.1 p.2)
 
+/-! ### Chain-rule decomposition of `dL/dt` (Issue #2)
+
+  The Lyapunov function evaluated along a trajectory is differentiable in time,
+  and its derivative decomposes into the phase and weight contributions defined
+  above. This is the chain-rule application underlying the `hL_deriv` hypothesis
+  that was previously taken as an axiom in `lyapunov_descent`. -/
+
+/-- (Issue #2) The Lyapunov function evaluated along a trajectory has the
+  expected time derivative, given by the sum of the phase and weight
+  contributions.
+
+  Proven by the chain rule on the explicit sum form of `lyapunovFn` (with
+  `s = -1`), combining `HasDerivAt` for each weight entry (from
+  `hWeight_diff`), for each phase (from `hPhase_dyn`), and `Real.cos`,
+  together with `phase_contribution_identity` (already proved) to identify
+  the phase part with `K · Σᵢ fᵢ²`. -/
+theorem Trajectory.lyapunovAlong_hasDerivAt
+    {cfg : SystemConfig n} (traj : Trajectory n cfg) (t : ℝ) :
+    HasDerivAt traj.lyapunovAlong
+      (phaseContribution cfg.coupling (traj.weights t) (traj.phases t) +
+       weightContribution cfg.decayRate (traj.phases t) (traj.weights t)
+         (traj.Wdot t)) t := by
+  -- Per-pair HasDerivAt for `W_ij(s) * cos(θ_i(s) - θ_j(s))`
+  have h_cos_pair : ∀ p ∈ upperTriPairs n,
+      HasDerivAt (fun s => traj.weights s p.1 p.2 *
+                            Real.cos (traj.phases s p.1 - traj.phases s p.2))
+        (traj.Wdot t p.1 p.2 *
+            Real.cos (traj.phases t p.1 - traj.phases t p.2) +
+         traj.weights t p.1 p.2 *
+           (-Real.sin (traj.phases t p.1 - traj.phases t p.2) *
+            (phaseDot cfg.coupling (traj.weights t) (traj.phases t) p.1 -
+             phaseDot cfg.coupling (traj.weights t) (traj.phases t) p.2))) t := by
+    intro p _
+    have hW := traj.hWeight_diff t p.1 p.2
+    have hθ : HasDerivAt (fun s => traj.phases s p.1 - traj.phases s p.2)
+        (phaseDot cfg.coupling (traj.weights t) (traj.phases t) p.1 -
+         phaseDot cfg.coupling (traj.weights t) (traj.phases t) p.2) t :=
+      (traj.hPhase_dyn t p.1).sub (traj.hPhase_dyn t p.2)
+    exact hW.mul hθ.cos
+  -- Per-pair HasDerivAt for `(W_ij(s))^2`
+  have h_sq_pair : ∀ p ∈ upperTriPairs n,
+      HasDerivAt (fun s => (traj.weights s p.1 p.2) ^ 2)
+        (2 * traj.weights t p.1 p.2 * traj.Wdot t p.1 p.2) t := by
+    intro p _
+    have hW := traj.hWeight_diff t p.1 p.2
+    have hPow := hW.pow 2
+    convert hPow using 1
+    push_cast
+    ring
+  -- Sum the per-pair derivatives.
+  have h_cos_sum := HasDerivAt.fun_sum h_cos_pair
+  have h_sq_sum := HasDerivAt.fun_sum h_sq_pair
+  -- Assemble the HasDerivAt for the unfolded Lyapunov function:
+  --   `(-(-1) * cos_sum) + (lam/2) * sq_sum`.
+  have h_full : HasDerivAt
+      (fun s => -(-1 : ℝ) *
+          (∑ p ∈ upperTriPairs n, traj.weights s p.1 p.2 *
+            Real.cos (traj.phases s p.1 - traj.phases s p.2))
+        + cfg.decayRate / 2 *
+          (∑ p ∈ upperTriPairs n, (traj.weights s p.1 p.2) ^ 2))
+      (-(-1 : ℝ) *
+          (∑ p ∈ upperTriPairs n,
+            (traj.Wdot t p.1 p.2 *
+              Real.cos (traj.phases t p.1 - traj.phases t p.2) +
+             traj.weights t p.1 p.2 *
+               (-Real.sin (traj.phases t p.1 - traj.phases t p.2) *
+                (phaseDot cfg.coupling (traj.weights t) (traj.phases t) p.1 -
+                 phaseDot cfg.coupling (traj.weights t) (traj.phases t) p.2))))
+        + cfg.decayRate / 2 *
+          (∑ p ∈ upperTriPairs n, 2 * traj.weights t p.1 p.2 * traj.Wdot t p.1 p.2)) t :=
+    (h_cos_sum.const_mul _).add (h_sq_sum.const_mul _)
+  -- `traj.lyapunovAlong` definitionally equals the unfolded sum form.
+  have hfn_eq : traj.lyapunovAlong = fun s =>
+      -(-1 : ℝ) *
+        (∑ p ∈ upperTriPairs n, traj.weights s p.1 p.2 *
+          Real.cos (traj.phases s p.1 - traj.phases s p.2))
+      + cfg.decayRate / 2 *
+        (∑ p ∈ upperTriPairs n, (traj.weights s p.1 p.2) ^ 2) := rfl
+  rw [hfn_eq]
+  -- Identify the chain-rule output with `phaseContribution + weightContribution`.
+  have hW_symm : (traj.weights t).IsSymm := (traj.hW_in_C t).1
+  have hPCI := phase_contribution_identity (traj.weights t) (traj.phases t) hW_symm
+  -- `phaseDot K W θ i = K * couplingForce W θ i` by definition.
+  have hpd : ∀ i, phaseDot cfg.coupling (traj.weights t) (traj.phases t) i
+                = cfg.coupling * couplingForce (traj.weights t) (traj.phases t) i :=
+    fun _ => rfl
+  convert h_full using 1
+  -- Goal: `phaseContribution + weightContribution = chain_rule_output`.
+  simp only [phaseContribution, weightContribution, hpd]
+  -- Step A: split the chain-rule sum (RHS) per-pair into a "weight part" and
+  -- a "phase part" using `ring` at the per-term level, then expose both as
+  -- separate sums.
+  have h_split :
+      -(-1 : ℝ) *
+          (∑ p ∈ upperTriPairs n,
+            (traj.Wdot t p.1 p.2 *
+                Real.cos (traj.phases t p.1 - traj.phases t p.2) +
+              traj.weights t p.1 p.2 *
+                (-Real.sin (traj.phases t p.1 - traj.phases t p.2) *
+                  (cfg.coupling * couplingForce (traj.weights t) (traj.phases t) p.1 -
+                   cfg.coupling * couplingForce (traj.weights t) (traj.phases t) p.2))))
+        + cfg.decayRate / 2 *
+          (∑ p ∈ upperTriPairs n, 2 * traj.weights t p.1 p.2 * traj.Wdot t p.1 p.2) =
+      (∑ p ∈ upperTriPairs n,
+          traj.Wdot t p.1 p.2 *
+            (-(-1 : ℝ) * Real.cos (traj.phases t p.1 - traj.phases t p.2) +
+             cfg.decayRate * traj.weights t p.1 p.2))
+      + (-cfg.coupling) *
+          (∑ p ∈ upperTriPairs n,
+            traj.weights t p.1 p.2 *
+              Real.sin (traj.phases t p.1 - traj.phases t p.2) *
+              (couplingForce (traj.weights t) (traj.phases t) p.1 -
+               couplingForce (traj.weights t) (traj.phases t) p.2)) := by
+    rw [Finset.mul_sum, Finset.mul_sum, ← Finset.sum_add_distrib,
+        Finset.mul_sum, ← Finset.sum_add_distrib]
+    refine Finset.sum_congr rfl (fun p _ => ?_)
+    ring
+  rw [h_split, hPCI]
+  ring
+
+/-! ### Issue #3 discharge: weight contribution non-positivity via Fermat -/
+
+/-- The time derivative of the weight trajectory is symmetric.
+  Follows from pointwise symmetry of `weights s` (via `hW_in_C s`) by
+  uniqueness of derivatives. -/
+private lemma Trajectory.Wdot_isSymm {cfg : SystemConfig n}
+    (traj : Trajectory n cfg) (t : ℝ) : (traj.Wdot t).IsSymm := by
+  ext i j
+  have hij := traj.hWeight_diff t i j
+  have hji := traj.hWeight_diff t j i
+  -- pointwise: weights s j i = weights s i j by symmetry
+  have h_eq : (fun s => traj.weights s j i) = (fun s => traj.weights s i j) := by
+    funext s
+    exact (traj.hW_in_C s).1.apply i j
+  rw [h_eq] at hji
+  -- both hij and hji are HasDerivAt of the same function fun s => weights s i j;
+  -- uniqueness of the derivative gives Wd t i j = Wd t j i
+  exact (hij.unique hji).symm
+
+/-- The time derivative of the weight trajectory has zero diagonal,
+  inherited from `weights s i i = 0` for all `s`. -/
+private lemma Trajectory.Wdot_diag_zero {cfg : SystemConfig n}
+    (traj : Trajectory n cfg) (t : ℝ) (i : Fin n) : traj.Wdot t i i = 0 := by
+  have hii := traj.hWeight_diff t i i
+  have h_const : (fun s => traj.weights s i i) = (fun _ : ℝ => (0 : ℝ)) := by
+    funext s
+    exact (traj.hW_in_C s).2.2.2.1 i
+  rw [h_const] at hii
+  exact hii.unique (hasDerivAt_const t 0)
+
+/-- `lyapunovGradW (-1) lam θ W` is symmetric in its index arguments when `W`
+  is symmetric (since `cos(θ_i - θ_j) = cos(θ_j - θ_i)`). -/
+private lemma lyapunovGradW_isSymm
+    (lam : ℝ) (theta : Fin n → ℝ) {W : Matrix (Fin n) (Fin n) ℝ}
+    (hW : W.IsSymm) :
+    (lyapunovGradW (-1 : ℝ) lam theta W).IsSymm := by
+  ext i j
+  simp only [Matrix.transpose_apply, lyapunovGradW, Matrix.of_apply]
+  rw [show theta j - theta i = -(theta i - theta j) from by ring, Real.cos_neg,
+      hW.apply i j]
+
+/-- For symmetric matrices `A` and `B` over `Fin n × Fin n` with `A` zero-
+  diagonal, the full Frobenius inner product equals twice the upper-triangle
+  pairing. Generic helper, made `public` because it is reusable beyond this
+  file. -/
+lemma sum_full_eq_twice_upperTri
+    {A B : Matrix (Fin n) (Fin n) ℝ}
+    (hAsymm : A.IsSymm) (hBsymm : B.IsSymm) (hAdiag : ∀ i, A i i = 0) :
+    ∑ i, ∑ j, A i j * B i j =
+    2 * ∑ p ∈ upperTriPairs n, A p.1 p.2 * B p.1 p.2 := by
+  -- Step 1: split into upper + lower (diagonal contributes zero since A i i = 0).
+  -- We mirror the pattern from `phase_contribution_identity`.
+  have h_split : ∑ i, ∑ j, A i j * B i j =
+      ∑ p ∈ upperTriPairs n, A p.1 p.2 * B p.1 p.2 +
+      ∑ p ∈ Finset.univ.filter (fun p : Fin n × Fin n => p.2 < p.1),
+        A p.1 p.2 * B p.1 p.2 := by
+    rw [← Finset.sum_union]
+    · rw [← Finset.sum_product', ← Finset.sum_subset]
+      · -- inclusion: (upper ∪ lower) ⊆ univ
+        intros p _
+        exact Finset.mem_univ p
+      · -- complement: the diagonal. A i i = 0 kills the term.
+        intros p _hp hp'
+        simp only [upperTriPairs, Finset.mem_union, Finset.mem_filter,
+                   Finset.mem_univ, true_and, not_or, not_lt] at hp'
+        have heq : p.1 = p.2 := le_antisymm hp'.2 hp'.1
+        rw [heq, hAdiag, zero_mul]
+    · -- disjointness of upper and lower
+      rw [Finset.disjoint_left]
+      intros p hp hp'
+      simp only [upperTriPairs, Finset.mem_filter, Finset.mem_univ, true_and] at hp hp'
+      omega
+  rw [h_split]
+  -- Step 2: lower-triangle sum equals upper-triangle sum via swap + symmetry.
+  have h_lower_eq : ∑ p ∈ Finset.univ.filter (fun p : Fin n × Fin n => p.2 < p.1),
+      A p.1 p.2 * B p.1 p.2 =
+      ∑ p ∈ upperTriPairs n, A p.1 p.2 * B p.1 p.2 := by
+    refine Finset.sum_bij (fun p _ => (p.2, p.1)) ?_ ?_ ?_ ?_
+    · -- maps into upperTriPairs
+      intros p hp
+      simp only [upperTriPairs, Finset.mem_filter, Finset.mem_univ, true_and] at hp ⊢
+      exact hp
+    · -- injective on the filtered set
+      intros p₁ _ p₂ _ h
+      have hpair : p₁.2 = p₂.2 ∧ p₁.1 = p₂.1 := Prod.mk.inj h
+      exact Prod.ext hpair.2 hpair.1
+    · -- surjective onto upperTriPairs
+      intros q hq
+      simp only [upperTriPairs, Finset.mem_filter, Finset.mem_univ, true_and] at hq
+      refine ⟨(q.2, q.1), ?_, rfl⟩
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+      exact hq
+    · -- preserves value via symmetry
+      intros p _
+      rw [hAsymm.apply p.1 p.2, hBsymm.apply p.1 p.2]
+  rw [h_lower_eq]
+  ring
+
+/-- (Issue #3 — discharged by Fermat's interior extremum.)
+  The weight contribution to `dL/dt` is non-positive along any trajectory.
+
+  **Argument.** Define `f(s) := ∑_{i,j} (W(s)_ij − W(t)_ij) · (Ẇ(t)_ij + η · ∂L/∂W_ij(t))`.
+  By `hWeight_dyn` applied at time `t` with `V := W(s)` (admissible because
+  `hW_in_C s`), `f(s) ≥ 0` for all `s`. At `s = t`, `f(t) = 0`, so `t` is a
+  global minimum of `f`. `f` is differentiable at `t` (via `hWeight_diff`)
+  with derivative `∑_{i,j} Ẇ(t)_ij · (Ẇ(t)_ij + η · ∂L/∂W_ij(t))`. By Fermat's
+  interior-extremum theorem this derivative vanishes:
+    `‖Ẇ(t)‖²_F + η · ⟨Ẇ(t), ∇_W L(t)⟩_F = 0`.
+  Since `η > 0` and `‖Ẇ‖²_F ≥ 0`, this forces `⟨Ẇ, ∇_W L⟩_F ≤ 0`. Symmetry
+  and zero-diagonal of `Ẇ(t)`, together with symmetry of `∇_W L(t)`, give
+  `⟨Ẇ, ∇_W L⟩_F = 2 · weightContribution`, so `weightContribution ≤ 0`. -/
+theorem Trajectory.hW_descent_derived {cfg : SystemConfig n}
+    (traj : Trajectory n cfg) (t : ℝ) :
+    weightContribution cfg.decayRate (traj.phases t) (traj.weights t)
+      (traj.Wdot t) ≤ 0 := by
+  -- Abbreviations
+  set Wd := traj.Wdot t with hWd_def
+  set W := traj.weights t with hW_def
+  set θ := traj.phases t with hθ_def
+  set gL := lyapunovGradW (-1 : ℝ) cfg.decayRate θ W with hgL_def
+  have heta : 0 < cfg.learnRate := cfg.heta_pos
+  -- Test function f(s) := ⟨W(s) - W(t), Wd + eta * gL⟩_full
+  let f : ℝ → ℝ := fun s =>
+    ∑ i, ∑ j, (traj.weights s i j - W i j) * (Wd i j + cfg.learnRate * gL i j)
+  -- f is differentiable at t with the expected derivative
+  have hf_deriv : HasDerivAt f
+      (∑ i, ∑ j, Wd i j * (Wd i j + cfg.learnRate * gL i j)) t := by
+    refine HasDerivAt.fun_sum (fun i _ => ?_)
+    refine HasDerivAt.fun_sum (fun j _ => ?_)
+    exact ((traj.hWeight_diff t i j).sub_const _).mul_const _
+  -- f(t) = 0
+  have hf_t : f t = 0 := by
+    show (∑ i, ∑ j, (traj.weights t i j - W i j) *
+            (Wd i j + cfg.learnRate * gL i j)) = 0
+    refine Finset.sum_eq_zero fun i _ => ?_
+    refine Finset.sum_eq_zero fun j _ => ?_
+    simp [hW_def]
+  -- f(s) ≥ 0 for all s — direct from hWeight_dyn at time t with V := traj.weights s
+  have hf_nonneg : ∀ s, 0 ≤ f s := fun s =>
+    traj.hWeight_dyn t (traj.weights s) (traj.hW_in_C s)
+  -- t is a local (in fact global) minimum of f
+  have hf_min : IsLocalMin f t :=
+    Filter.Eventually.of_forall (fun s => hf_t ▸ hf_nonneg s)
+  -- Fermat: f'(t) = 0
+  have hf'_zero : (∑ i, ∑ j, Wd i j * (Wd i j + cfg.learnRate * gL i j)) = 0 :=
+    hf_min.hasDerivAt_eq_zero hf_deriv
+  -- Algebra: ∑ Wd² + η · ⟨Wd, gL⟩_F = 0 ⟹ ⟨Wd, gL⟩_F ≤ 0
+  have h_split :
+      (∑ i, ∑ j, Wd i j * (Wd i j + cfg.learnRate * gL i j)) =
+      (∑ i, ∑ j, Wd i j ^ 2) + cfg.learnRate * (∑ i, ∑ j, Wd i j * gL i j) := by
+    rw [show (fun i : Fin n => ∑ j, Wd i j * (Wd i j + cfg.learnRate * gL i j)) =
+        (fun i => (∑ j, Wd i j ^ 2) + cfg.learnRate * (∑ j, Wd i j * gL i j)) from ?_]
+    · rw [Finset.sum_add_distrib, ← Finset.mul_sum]
+    · funext i
+      rw [show (fun j : Fin n => Wd i j * (Wd i j + cfg.learnRate * gL i j)) =
+          (fun j => Wd i j ^ 2 + cfg.learnRate * (Wd i j * gL i j)) from
+        funext fun j => by ring]
+      rw [Finset.sum_add_distrib, ← Finset.mul_sum]
+  rw [h_split] at hf'_zero
+  have h_sq_nn : 0 ≤ ∑ i, ∑ j, Wd i j ^ 2 :=
+    Finset.sum_nonneg fun _ _ => Finset.sum_nonneg fun _ _ => sq_nonneg _
+  have h_full_nonpos : (∑ i, ∑ j, Wd i j * gL i j) ≤ 0 := by
+    nlinarith
+  -- Convert full sum to upper-triangle: ⟨Wd, gL⟩_F = 2 · weightContribution
+  have hWd_symm : Wd.IsSymm := traj.Wdot_isSymm t
+  have hWd_diag : ∀ i, Wd i i = 0 := traj.Wdot_diag_zero t
+  have hW_symm_t : W.IsSymm := (traj.hW_in_C t).1
+  have hgL_symm : gL.IsSymm := lyapunovGradW_isSymm cfg.decayRate θ hW_symm_t
+  have h_double : (∑ i, ∑ j, Wd i j * gL i j) =
+      2 * ∑ p ∈ upperTriPairs n, Wd p.1 p.2 * gL p.1 p.2 :=
+    sum_full_eq_twice_upperTri hWd_symm hgL_symm hWd_diag
+  rw [h_double] at h_full_nonpos
+  -- Identify ∑_{i<j} Wd · gL with weightContribution
+  have h_id : (∑ p ∈ upperTriPairs n, Wd p.1 p.2 * gL p.1 p.2) =
+      weightContribution cfg.decayRate θ W Wd := by
+    show (∑ p ∈ upperTriPairs n, Wd p.1 p.2 * gL p.1 p.2) =
+        ∑ p ∈ upperTriPairs n,
+          Wd p.1 p.2 * (-(-1) * Real.cos (θ p.1 - θ p.2) + cfg.decayRate * W p.1 p.2)
+    refine Finset.sum_congr rfl fun p _ => ?_
+    simp only [hgL_def, lyapunovGradW, Matrix.of_apply]
+  rw [h_id] at h_full_nonpos
+  linarith
+
+/-! ### Main descent theorem -/
+
 /-
-**Main Theorem (Lyapunov Descent)**: The Lyapunov function L is non-increasing
+**Main Theorem (Lyapunov Descent)**: The Lyapunov function `L` is non-increasing
   along trajectories of the Budgeted Hebbian Kuramoto system.
 
-  We assume:
-  - The Lyapunov function is differentiable along the trajectory
-  - Its derivative equals the sum of phase and weight contributions
-  - The weight contribution is non-positive (from projected gradient descent)
-
-  From these and the proved `phase_descent`, we conclude dL/dt ≤ 0 everywhere,
-  and hence L is non-increasing.
+  The chain-rule decomposition `lyapunovAlong_hasDerivAt` (Issue #2) gives
+  `dL/dt = phaseContribution + weightContribution`. The phase term is `≤ 0`
+  by `phase_descent`. The weight term is `≤ 0` by `hW_descent_derived`
+  (Issue #3 discharged via Fermat's interior extremum applied to
+  `hWeight_dyn`).
 -/
 theorem lyapunov_descent (cfg : SystemConfig n) (traj : Trajectory n cfg)
-    /- The Lyapunov function along the trajectory is continuous -/
-    (hL_cont : ContinuousOn traj.lyapunovAlong (Set.univ))
-    /- The Lyapunov function is differentiable on ℝ -/
-    (hL_diff : DifferentiableOn ℝ traj.lyapunovAlong (Set.univ))
-    /- The derivative of L along the trajectory is the sum of phase and weight contributions -/
-    (hL_deriv : ∀ t, deriv traj.lyapunovAlong t =
-      phaseContribution cfg.coupling (traj.weights t) (traj.phases t) +
-      weightContribution cfg.decayRate (traj.phases t) (traj.weights t)
-        (deriv traj.weights t))
-    /- The weight contribution is non-positive (from projected gradient descent onto C) -/
-    (hW_descent : ∀ t, weightContribution cfg.decayRate (traj.phases t) (traj.weights t)
-        (deriv traj.weights t) ≤ 0)
     (t₁ t₂ : ℝ) (h12 : t₁ ≤ t₂) :
     traj.lyapunovAlong t₂ ≤ traj.lyapunovAlong t₁ := by
-  -- By the properties of the derivative, if the derivative of a function is non-positive on an interval, then the function is non-increasing on that interval.
-  have h_deriv_nonpos : ∀ t, deriv traj.lyapunovAlong t ≤ 0 := by
-    exact fun t => hL_deriv t ▸ add_nonpos ( phase_descent cfg.hK_neg _ _ ) ( hW_descent t );
-  by_contra h_contra;
-  have := exists_deriv_eq_slope traj.lyapunovAlong ( show t₁ < t₂ from lt_of_le_of_ne h12 ( by aesop_cat ) );
-  exact absurd ( this ( hL_cont.mono ( Set.subset_univ _ ) ) ( hL_diff.mono ( Set.subset_univ _ ) ) ) ( by rintro ⟨ c, ⟨ h₁, h₂ ⟩, h₃ ⟩ ; rw [ eq_div_iff ] at h₃ <;> nlinarith [ h_deriv_nonpos c ] )
+  have h_diff : Differentiable ℝ traj.lyapunovAlong := fun s =>
+    (traj.lyapunovAlong_hasDerivAt s).differentiableAt
+  have h_deriv_nonpos : ∀ s, deriv traj.lyapunovAlong s ≤ 0 := fun s => by
+    rw [(traj.lyapunovAlong_hasDerivAt s).deriv]
+    exact add_nonpos (phase_descent cfg.hK_neg _ _) (traj.hW_descent_derived s)
+  exact antitone_of_deriv_nonpos h_diff h_deriv_nonpos h12
 
-/-! ## KKT Stationarity Corollary -/
+/-! ## KKT Stationarity Corollary (Issue #4)
+
+  The set-membership half is proved. The full KKT-optimality half is a tracked
+  TODO (sorry stub below). -/
 
 /-- A state (θ, W) is KKT-stationary for the weight optimisation if W minimises
   L(θ, ·) over C. -/
@@ -275,14 +607,14 @@ def IsKKTStationary (n : ℕ) (cfg : SystemConfig n)
   ∀ W' ∈ constraintSet n cfg.support cfg.budget,
     lyapunovFn n (-1) cfg.decayRate theta W ≤ lyapunovFn n (-1) cfg.decayRate theta W'
 
-/-
-**Corollary (KKT Stationarity)**: Any limit point (θ*, W*) of a trajectory
-  satisfies W* ∈ C (membership in the constraint set).
+/--
+**Set-membership corollary (Issue #4, set-membership half).** Any limit point
+`W*` of the weight trajectory belongs to the constraint set `C`.
 
-  This follows from closedness of C and the fact that W(t) ∈ C for all t.
-  The full KKT optimality (W* minimises L(θ*,·) over C) additionally requires
-  that the projected gradient vanishes at the limit, which follows from
-  the Lyapunov descent and the continuous dependence of the gradient on the state.
+This is *only* membership in `C`; it is **not** full KKT stationarity. The
+optimality half — that `W*` minimises `L(θ*, ·)` over `C` — is a strictly
+stronger claim and is tracked as `limit_point_isKKTStationary` (sorry stub
+below; see Issue #4).
 -/
 theorem limit_point_mem_constraintSet (cfg : SystemConfig n)
     (traj : Trajectory n cfg)
@@ -290,5 +622,27 @@ theorem limit_point_mem_constraintSet (cfg : SystemConfig n)
     (h_limit : Filter.Tendsto traj.weights Filter.atTop (nhds W_star)) :
     W_star ∈ constraintSet n cfg.support cfg.budget := by
   exact IsClosed.mem_of_tendsto ( constraintSet_isClosed _ _ ) h_limit ( Filter.Eventually.of_forall fun x => traj.hW_in_C x )
+
+/--
+**(Issue #4 — open, sorry stub.)** Full KKT stationarity at a joint limit point
+`(θ*, W*)` of a Lyapunov-descending trajectory: `W*` minimises `L(θ*, ·)` over
+the constraint set `C`.
+
+The argument requires:
+1. `lyapunov_descent` (proved sorry-free) to give a monotone non-increasing
+   bounded-below sequence of Lyapunov values, hence a Cauchy limit;
+2. the variational inequality at the limit (from `hWeight_dyn` propagated
+   through `Filter.Tendsto` and closedness of the projection mapping);
+3. translating the variational inequality into the global optimality
+   condition over the convex set `C`.
+
+Currently `sorry`-bearing; tracked by GitHub issue #4. -/
+theorem limit_point_isKKTStationary (cfg : SystemConfig n)
+    (traj : Trajectory n cfg)
+    (θ_star : Fin n → ℝ) (W_star : Matrix (Fin n) (Fin n) ℝ)
+    (_h_phase_limit : Filter.Tendsto traj.phases Filter.atTop (nhds θ_star))
+    (_h_weight_limit : Filter.Tendsto traj.weights Filter.atTop (nhds W_star)) :
+    IsKKTStationary n cfg θ_star W_star := by
+  sorry
 
 end KuramotoHebbian

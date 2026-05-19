@@ -243,6 +243,36 @@
   }
   button.seg.active:hover { background: var(--gold-2); color: #0a0a0f; }
 
+  .panel.stack { flex-direction: column; align-items: stretch; gap: 8px; }
+  .panel.stack > .row { display: flex; align-items: center; gap: 14px; }
+  .topo-desc {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-3);
+    letter-spacing: 0.06em;
+    padding-left: 110px;
+    font-style: italic;
+    min-height: 12px;
+  }
+  @media (max-width: 620px) { .topo-desc { padding-left: 0; } }
+
+  button.toggle {
+    background: var(--panel-2);
+    color: var(--ink-3);
+    border: 1px solid var(--line);
+    padding: 7px 12px;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+  }
+  button.toggle:hover { color: var(--ink-2); border-color: #3a3a52; background: var(--panel-2); }
+  button.toggle.on {
+    background: var(--gold);
+    color: #0a0a0f;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(212,175,55,0.15);
+  }
+  button.toggle.on:hover { background: var(--gold-2); color: #0a0a0f; }
+
   .legend {
     display: flex;
     gap: 18px;
@@ -304,20 +334,49 @@
 <div class="controls">
 
   <div class="panel">
-    <label>Coupling age</label>
+    <label id="ageTitle">Coupling age</label>
     <div class="age-bar">
       <div class="age-meter"><div id="ageFill" class="age-fill"></div></div>
       <div id="ageLabel" class="age-label weak">WEAK</div>
     </div>
   </div>
 
-  <div class="panel">
-    <label>Topology</label>
-    <div class="seg-group">
-      <button class="seg" data-topo="full">Fully&nbsp;Connected</button>
-      <button class="seg active" data-topo="ring">Ring</button>
-      <button class="seg" data-topo="sparse">Sparse&nbsp;Random</button>
+  <div class="panel stack">
+    <div class="row">
+      <label>Topology</label>
+      <div class="seg-group">
+        <button class="seg" data-topo="full">Fully&nbsp;Connected</button>
+        <button class="seg active" data-topo="ring">Ring</button>
+        <button class="seg" data-topo="sparse">Sparse&nbsp;Random</button>
+        <button class="seg" data-topo="hub">Hub-Spoke</button>
+        <button class="seg" data-topo="island">Island&nbsp;Chain</button>
+      </div>
     </div>
+    <div class="topo-desc" id="topoDesc">Nearest-neighbour only — damage propagates locally</div>
+  </div>
+
+  <div class="panel">
+    <label>Speed</label>
+    <div class="seg-group">
+      <button class="seg" data-speed="0.25">0.25×</button>
+      <button class="seg active" data-speed="1">1×</button>
+      <button class="seg" data-speed="2">2×</button>
+      <button class="seg" data-speed="4">4×</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <label>Nodes</label>
+    <div class="slider-wrap">
+      <input type="range" id="nodeN" min="0" max="3" step="1" value="1">
+      <div id="nodeNValue" class="slider-value">14</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <label>Modes</label>
+    <button class="toggle" id="senBtn">Senescence:&nbsp;OFF</button>
+    <button class="toggle on" id="learnBtn">Learning:&nbsp;ON</button>
   </div>
 
   <div class="panel">
@@ -347,20 +406,33 @@
   // ────────────────────────────────────────────────────────────────────────
   //  CONFIGURATION
   // ────────────────────────────────────────────────────────────────────────
-  const N            = 14;          // number of oscillators
+  let   N            = 14;          // number of oscillators (mutable via NODES slider)
+  const N_OPTIONS    = [8, 14, 20, 32];
   const DT           = 0.035;       // integration timestep
   const SUBSTEPS     = 2;           // physics steps per frame
   const OMEGA_MEAN   = 1.0;         // natural frequency centre
   const OMEGA_SPREAD = 0.08;        // natural frequency spread
   const K_INIT       = 0.04;        // initial coupling strength
   const K_MAX        = 1.62;        // saturation cap
+  const K_FLOOR      = K_INIT;      // senescence pulls couplings back toward this floor
   const HEBB_RATE    = 0.22;        // dK/dt ∝ cos(θ_i − θ_j) growth
   const HEBB_DECAY   = 0.025;       // gentle decay pulling K → 0
+  const SEN_THRESH   = 0.04;        // |dK/dt| below this counts as "stable"
+  const SEN_WINDOW   = 5.5;         // sim-seconds of stability before senescent decay engages
+  const SEN_DECAY    = 0.18;        // senescent decay rate toward K_FLOOR
   const RESYNC_TOL   = 0.28;        // |Δθ| considered resynced
   const RESYNC_DELAY = 0.55;        // sim-seconds before checking resync
   const VERDICT_TIME = 9.0;         // sim-seconds before forcing verdict
   const VERDICT_R    = 0.94;        // order param threshold for "consensus locked"
   const COLLAPSE_R   = 0.55;        // order param below which we call it collapse
+
+  const TOPO_DESC = {
+    full:   'All nodes coupled — fast sync, uniform resilience',
+    ring:   'Nearest-neighbour only — damage propagates locally',
+    sparse: 'Half-mean-degree — the Hebbian budget constraint',
+    hub:    'One node is the system’s single point of failure',
+    island: 'Bridge nodes determine cross-cluster sync',
+  };
 
   const COL = {
     bgInner:   '#15151f',
@@ -377,13 +449,19 @@
   // ────────────────────────────────────────────────────────────────────────
   //  STATE
   // ────────────────────────────────────────────────────────────────────────
-  const osc     = [];           // oscillator array
-  const K       = [];           // NxN symmetric coupling matrix
-  const ALLOWED = [];           // NxN boolean — which pairs may couple (topology mask)
-  let topology  = 'ring';       // 'full' | 'ring' | 'sparse'
-  let simTime   = 0;
-  let paused    = false;
-  let scenario  = null;         // active perturbation scenario, or null
+  const osc        = [];        // oscillator array
+  const K          = [];        // NxN symmetric coupling matrix
+  const ALLOWED    = [];        // NxN boolean — which pairs may couple (topology mask)
+  const stableTime = [];        // NxN — sim-seconds each pair has been stable (for senescence)
+  let nodeRoles    = [];        // per-node 'hub' | 'bridge' | null (for labels + special layout)
+  let nodeXY       = [];        // per-node {x, y} — topology-dependent canvas position
+  let topology     = 'ring';    // 'full' | 'ring' | 'sparse' | 'hub' | 'island'
+  let speedMult    = 1.0;       // simulation speed multiplier
+  let senescence   = false;     // second-order Hebbian decay on stable pairs
+  let learning     = true;      // when false, K freezes; phases continue
+  let simTime      = 0;
+  let paused       = false;
+  let scenario     = null;      // active perturbation scenario, or null
 
   // ────────────────────────────────────────────────────────────────────────
   //  DOM
@@ -406,7 +484,14 @@
   const $perturbBtn    = document.getElementById('perturbBtn');
   const $resetBtn      = document.getElementById('resetBtn');
   const $pauseBtn      = document.getElementById('pauseBtn');
-  const $topoBtns      = document.querySelectorAll('button.seg');
+  const $topoBtns      = document.querySelectorAll('button.seg[data-topo]');
+  const $speedBtns     = document.querySelectorAll('button.seg[data-speed]');
+  const $topoDesc      = document.getElementById('topoDesc');
+  const $nodeN         = document.getElementById('nodeN');
+  const $nodeNValue    = document.getElementById('nodeNValue');
+  const $senBtn        = document.getElementById('senBtn');
+  const $learnBtn      = document.getElementById('learnBtn');
+  const $ageTitle      = document.getElementById('ageTitle');
 
   // High-DPI handling
   (function setupHiDPI () {
@@ -459,15 +544,35 @@
   // ────────────────────────────────────────────────────────────────────────
   //  SIMULATION
   // ────────────────────────────────────────────────────────────────────────
+  // Cluster sizes for island chain — proportional to N, three clusters
+  function islandClusterSizes () {
+    const a = Math.ceil(N / 3);
+    const b = Math.ceil((N - a) / 2);
+    const c = N - a - b;
+    return [a, b, c];
+  }
+
   function buildTopologyMask () {
     ALLOWED.length = 0;
     for (let i = 0; i < N; i++) ALLOWED.push(new Array(N).fill(false));
+    nodeRoles = new Array(N).fill(null);
+    nodeXY    = new Array(N);
+
+    // Default ring layout — overridden below for hub/island
+    const ringLayout = () => {
+      for (let i = 0; i < N; i++) {
+        const a = (i / N) * TAU - Math.PI / 2;
+        nodeXY[i] = { x: CX + Math.cos(a) * RING_R, y: CY + Math.sin(a) * RING_R };
+      }
+    };
 
     if (topology === 'full') {
+      ringLayout();
       for (let i = 0; i < N; i++)
         for (let j = 0; j < N; j++)
           if (i !== j) ALLOWED[i][j] = true;
     } else if (topology === 'ring') {
+      ringLayout();
       // Each node couples only to its 2 nearest ring neighbours
       for (let i = 0; i < N; i++) {
         const left  = (i - 1 + N) % N;
@@ -476,6 +581,7 @@
         ALLOWED[i][right] = true; ALLOWED[right][i] = true;
       }
     } else if (topology === 'sparse') {
+      ringLayout();
       // Symmetric Erdős–Rényi mask with edge probability tuned so
       // mean degree ≈ N/2 (half the fully-connected mean degree).
       const p = N / (2 * (N - 1));
@@ -484,14 +590,61 @@
           if (Math.random() < p) { ALLOWED[i][j] = true; ALLOWED[j][i] = true; }
         }
       }
+    } else if (topology === 'hub') {
+      // Node 0 is the hub at canvas centre; nodes 1..N-1 on the ring.
+      nodeXY[0] = { x: CX, y: CY };
+      nodeRoles[0] = 'hub';
+      const M = N - 1;
+      for (let i = 1; i < N; i++) {
+        const a = ((i - 1) / M) * TAU - Math.PI / 2;
+        nodeXY[i] = { x: CX + Math.cos(a) * RING_R, y: CY + Math.sin(a) * RING_R };
+        ALLOWED[0][i] = true; ALLOWED[i][0] = true;
+      }
+    } else if (topology === 'island') {
+      // Three clusters in a triangle around the canvas; one bridge per cluster.
+      const sizes      = islandClusterSizes();
+      const clusterR   = RING_R * 0.62;     // distance from canvas centre to each cluster centre
+      const innerR     = Math.max(28, Math.min(70, 220 / Math.max(sizes[0], 1)));
+      const bridges    = [];
+      let   nodeIdx    = 0;
+      for (let c = 0; c < 3; c++) {
+        const size      = sizes[c];
+        const cAng      = (c / 3) * TAU - Math.PI / 2;
+        const ccx       = CX + Math.cos(cAng) * clusterR;
+        const ccy       = CY + Math.sin(cAng) * clusterR;
+        const clusterStart = nodeIdx;
+        const bridgeLocal  = Math.floor(size / 2);
+        const bridgeIdx    = clusterStart + bridgeLocal;
+        bridges.push(bridgeIdx);
+        nodeRoles[bridgeIdx] = 'bridge';
+        // Place this cluster's nodes as a small ring around (ccx,ccy).
+        // Bridge sits facing the canvas centre so cross-cluster edges look clean.
+        for (let k = 0; k < size; k++) {
+          const localOffset = k - bridgeLocal;
+          const a = cAng + Math.PI + (localOffset / Math.max(size, 1)) * TAU;
+          nodeXY[nodeIdx] = { x: ccx + Math.cos(a) * innerR, y: ccy + Math.sin(a) * innerR };
+          nodeIdx++;
+        }
+        // Tight intra-cluster connections (fully connected within the cluster)
+        for (let i = clusterStart; i < clusterStart + size; i++)
+          for (let j = i + 1; j < clusterStart + size; j++) {
+            ALLOWED[i][j] = true; ALLOWED[j][i] = true;
+          }
+      }
+      // Bridge chain: each bridge connects to the next bridge only
+      for (let c = 0; c < bridges.length - 1; c++) {
+        const a = bridges[c], b = bridges[c + 1];
+        ALLOWED[a][b] = true; ALLOWED[b][a] = true;
+      }
     }
   }
 
   function init () {
-    osc.length = 0;
-    K.length   = 0;
-    simTime    = 0;
-    scenario   = null;
+    osc.length        = 0;
+    K.length          = 0;
+    stableTime.length = 0;
+    simTime           = 0;
+    scenario          = null;
     renderVerdict(null);
     buildTopologyMask();
     for (let i = 0; i < N; i++) {
@@ -508,10 +661,21 @@
       const row = new Array(N).fill(0);
       for (let j = 0; j < N; j++) if (ALLOWED[i][j]) row[j] = K_INIT;
       K.push(row);
+      stableTime.push(new Array(N).fill(0));
     }
+    // Keep perturb-count slider bounded by current N
+    const maxPerturb = Math.max(2, N - (N % 2));
+    $perturbN.max = String(maxPerturb);
+    if (parseInt($perturbN.value, 10) > maxPerturb) {
+      $perturbN.value = String(maxPerturb);
+      $perturbNValue.textContent = $perturbN.value;
+    }
+    $topoDesc.textContent = TOPO_DESC[topology] || '';
   }
 
   function step () {
+    const dt = DT * speedMult;
+
     // Kuramoto: dθ/dt = ω_i + (1/N) Σ_j K_ij sin(θ_j − θ_i)
     const dtheta = new Array(N);
     for (let i = 0; i < N; i++) {
@@ -523,21 +687,43 @@
       }
       dtheta[i] = osc[i].omega + sum / N;
     }
-    for (let i = 0; i < N; i++) osc[i].theta = wrap(osc[i].theta + dtheta[i] * DT + (Math.random() - 0.5) * 0.024);
+    for (let i = 0; i < N; i++) osc[i].theta = wrap(osc[i].theta + dtheta[i] * dt + (Math.random() - 0.5) * 0.024);
 
-    // Hebbian: dK_ij/dt = ε cos(θ_i − θ_j) − γ K_ij    (symmetric)
-    // Only allowed pairs may grow; disallowed pairs are pinned to 0 by topology.
-    for (let i = 0; i < N; i++) {
-      for (let j = i + 1; j < N; j++) {
-        if (!ALLOWED[i][j]) continue;
-        const align = Math.cos(osc[i].theta - osc[j].theta);
-        const dK = HEBB_RATE * align - HEBB_DECAY * K[i][j];
-        const v  = clamp(K[i][j] + dK * DT, 0, K_MAX);
-        K[i][j] = v; K[j][i] = v;
+    // Hebbian + senescence — entire block skipped when learning is OFF (K freezes)
+    if (learning) {
+      // Hebbian: dK_ij/dt = ε cos(θ_i − θ_j) − γ K_ij    (symmetric)
+      // Only allowed pairs may grow; disallowed pairs are pinned to 0 by topology.
+      for (let i = 0; i < N; i++) {
+        for (let j = i + 1; j < N; j++) {
+          if (!ALLOWED[i][j]) continue;
+          const align  = Math.cos(osc[i].theta - osc[j].theta);
+          const dK     = HEBB_RATE * align - HEBB_DECAY * K[i][j];
+          const kPrev  = K[i][j];
+          let   v      = clamp(kPrev + dK * dt, 0, K_MAX);
+
+          // Senescence: pairs whose post-clamp K has barely moved for
+          // SEN_WINDOW seconds slowly drift back toward K_FLOOR. Pairs that
+          // are actively changing (delta-per-second > SEN_THRESH) reset their
+          // stable-age timer and stay protected. A pair pinned at K_MAX has
+          // delta ≈ 0 → counts as stable → senesces. That's the intended
+          // "over-fit couplings can't adapt" failure mode.
+          if (senescence) {
+            const rate = Math.abs(v - kPrev) / Math.max(dt, 1e-6);
+            if (rate < SEN_THRESH) stableTime[i][j] += dt;
+            else                    stableTime[i][j]  = 0;
+            if (stableTime[i][j] > SEN_WINDOW) {
+              v -= SEN_DECAY * dt * (v - K_FLOOR);
+              v  = clamp(v, 0, K_MAX);
+            }
+          } else if (stableTime[i][j] !== 0) {
+            stableTime[i][j] = 0;
+          }
+          K[i][j] = v; K[j][i] = v;
+        }
       }
     }
 
-    simTime += DT;
+    simTime += dt;
 
     // Resync detection: node rejoins consensus
     const op   = orderParameter();
@@ -625,11 +811,6 @@
   // ────────────────────────────────────────────────────────────────────────
   //  RENDER
   // ────────────────────────────────────────────────────────────────────────
-  function nodePos (i) {
-    const a = (i / N) * TAU - Math.PI / 2;
-    return { x: CX + Math.cos(a) * RING_R, y: CY + Math.sin(a) * RING_R };
-  }
-
   function rgba (hex, a) {
     const h = hex.replace('#', '');
     const r = parseInt(h.slice(0, 2), 16);
@@ -656,9 +837,8 @@
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Cache node positions
-    const pos = new Array(N);
-    for (let i = 0; i < N; i++) pos[i] = nodePos(i);
+    // Cache node positions (topology-dependent, computed in buildTopologyMask)
+    const pos = nodeXY;
 
     // Coupling lines — gold, alpha & width by strength
     for (let i = 0; i < N; i++) {
@@ -787,6 +967,24 @@
       ctx.arc(p.x, p.y, 1.8, 0, TAU);
       ctx.fillStyle = baseCol === COL.nodeIdle ? COL.nodeHand : baseCol;
       ctx.fill();
+
+      // Role label (HUB / BRIDGE) — small text below the node
+      const role = nodeRoles[i];
+      if (role) {
+        const label = role === 'hub' ? 'HUB' : 'BRIDGE';
+        // Hub sits at canvas centre; bridges sit on cluster mini-rings.
+        // Push the label outward from the canvas centre so it never crosses the node.
+        const dx = p.x - CX, dy = p.y - CY;
+        const len = Math.hypot(dx, dy) || 1;
+        const off = NODE_R + 11;
+        const lx  = p.x + (dx / len) * off;
+        const ly  = role === 'hub' ? p.y + NODE_R + 14 : p.y + (dy / len) * off + 3;
+        ctx.font         = '700 9px ui-monospace, "SF Mono", Menlo, monospace';
+        ctx.textAlign    = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle    = rgba(COL.gold, 0.85);
+        ctx.fillText(label, lx, ly);
+      }
     }
   }
 
@@ -796,9 +994,10 @@
   function updateReadouts () {
     const op = orderParameter();
     const mk = meanCoupling();
-    $sync.textContent  = Math.round(op.r * 100) + '%';
-    $meanK.textContent = mk.toFixed(2);
-    $time.textContent  = simTime.toFixed(1) + 's';
+    $sync.textContent     = Math.round(op.r * 100) + '%';
+    $meanK.textContent    = mk.toFixed(2);
+    $time.textContent     = simTime.toFixed(1) + 's';
+    $ageTitle.textContent = senescence ? 'Aging' : 'Coupling age';
 
     const pct = clamp(mk / K_MAX, 0, 1);
     $ageFill.style.width = (pct * 100) + '%';
@@ -860,6 +1059,27 @@
     $topoBtns.forEach(b => b.classList.toggle('active', b === btn));
     init();
   }));
+  $speedBtns.forEach(btn => btn.addEventListener('click', () => {
+    speedMult = parseFloat(btn.dataset.speed);
+    $speedBtns.forEach(b => b.classList.toggle('active', b === btn));
+  }));
+  $nodeN.addEventListener('input', () => {
+    N = N_OPTIONS[parseInt($nodeN.value, 10)];
+    $nodeNValue.textContent = N;
+    init();
+  });
+  $senBtn.addEventListener('click', () => {
+    senescence = !senescence;
+    $senBtn.classList.toggle('on', senescence);
+    $senBtn.textContent = 'Senescence: ' + (senescence ? 'ON' : 'OFF');
+    // Reset stable-time tracking so flipping the toggle gives a clean window
+    for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) stableTime[i][j] = 0;
+  });
+  $learnBtn.addEventListener('click', () => {
+    learning = !learning;
+    $learnBtn.classList.toggle('on', learning);
+    $learnBtn.textContent = 'Learning: ' + (learning ? 'ON' : 'OFF');
+  });
   $pauseBtn.addEventListener('click', () => {
     paused = !paused;
     $pauseBtn.textContent = paused ? 'Resume' : 'Pause';

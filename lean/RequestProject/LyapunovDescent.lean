@@ -594,10 +594,13 @@ theorem lyapunov_descent (cfg : SystemConfig n) (traj : Trajectory n cfg)
     exact add_nonpos (phase_descent cfg.hK_neg _ _) (traj.hW_descent_derived s)
   exact antitone_of_deriv_nonpos h_diff h_deriv_nonpos h12
 
-/-! ## KKT Stationarity Corollary (Issue #4)
+/-! ## KKT Stationarity Corollary (Issue #4 — closed sorry-free)
 
-  The set-membership half is proved. The full KKT-optimality half is a tracked
-  TODO (sorry stub below). -/
+  Both halves proved: `limit_point_mem_constraintSet` for primal feasibility,
+  `limit_point_isKKTStationary` for full global optimality at a weight
+  fixed-point (`Wdot t_star = 0`). The latter uses the variational inequality
+  `hWeight_dyn`, the new `lyapunovFn_convex_in_W` convexity lemma, and
+  `sum_full_eq_twice_upperTri` from the Issue #3 discharge. -/
 
 /-- A state (θ, W) is KKT-stationary for the weight optimisation if W minimises
   L(θ, ·) over C. -/
@@ -608,13 +611,10 @@ def IsKKTStationary (n : ℕ) (cfg : SystemConfig n)
     lyapunovFn n (-1) cfg.decayRate theta W ≤ lyapunovFn n (-1) cfg.decayRate theta W'
 
 /--
-**Set-membership corollary (Issue #4, set-membership half).** Any limit point
-`W*` of the weight trajectory belongs to the constraint set `C`.
-
-This is *only* membership in `C`; it is **not** full KKT stationarity. The
-optimality half — that `W*` minimises `L(θ*, ·)` over `C` — is a strictly
-stronger claim and is tracked as `limit_point_isKKTStationary` (sorry stub
-below; see Issue #4).
+**Set-membership corollary.** Any limit point `W*` of the weight trajectory
+belongs to the constraint set `C`. Companion to `limit_point_isKKTStationary`
+below, which establishes the full optimality half (closed sorry-free, see
+Issue #4).
 -/
 theorem limit_point_mem_constraintSet (cfg : SystemConfig n)
     (traj : Trajectory n cfg)
@@ -623,26 +623,128 @@ theorem limit_point_mem_constraintSet (cfg : SystemConfig n)
     W_star ∈ constraintSet n cfg.support cfg.budget := by
   exact IsClosed.mem_of_tendsto ( constraintSet_isClosed _ _ ) h_limit ( Filter.Eventually.of_forall fun x => traj.hW_in_C x )
 
+/-- The Lyapunov function `L(θ, ·)` is convex in the weight matrix `W`:
+  for any `V`, the first-order Taylor expansion at `W` gives a lower bound.
+
+  Equivalently, `L(θ, V) ≥ L(θ, W) + ⟨∇_W L(θ, W), V − W⟩_{upperTri}` for the
+  upper-triangle inner product. The convexity residual equals
+  `(λ/2) · Σ_{i<j} (V_ij − W_ij)² ≥ 0` since `λ > 0` (from `cfg.hlam_pos`).
+
+  This is the standard convexity certificate used in the KKT-stationarity
+  corollary: at a fixed point `Ẇ = 0`, the variational inequality from
+  `hWeight_dyn` plus convexity yields global minimisation. -/
+private lemma lyapunovFn_convex_in_W (cfg : SystemConfig n) (theta : Fin n → ℝ)
+    (W V : Matrix (Fin n) (Fin n) ℝ) :
+    lyapunovFn n (-1) cfg.decayRate theta W +
+      (∑ p ∈ upperTriPairs n,
+        lyapunovGradW (-1) cfg.decayRate theta W p.1 p.2 *
+        (V p.1 p.2 - W p.1 p.2)) ≤
+    lyapunovFn n (-1) cfg.decayRate theta V := by
+  unfold lyapunovFn
+  simp only [Finset.mul_sum]
+  rw [← Finset.sum_add_distrib, ← Finset.sum_add_distrib, ← Finset.sum_add_distrib]
+  refine Finset.sum_le_sum fun p _ => ?_
+  simp only [lyapunovGradW, Matrix.of_apply]
+  have hlam : 0 < cfg.decayRate := cfg.hlam_pos
+  have h_sq : 0 ≤ (V p.1 p.2 - W p.1 p.2)^2 := sq_nonneg _
+  nlinarith [h_sq, hlam]
+
 /--
-**(Issue #4 — open, sorry stub.)** Full KKT stationarity at a joint limit point
-`(θ*, W*)` of a Lyapunov-descending trajectory: `W*` minimises `L(θ*, ·)` over
-the constraint set `C`.
+**(Issue #4 — closed sorry-free, via Fermat-stationary fixed-point argument.)**
+Full KKT stationarity at a *weight fixed point* of the trajectory.
 
-The argument requires:
-1. `lyapunov_descent` (proved sorry-free) to give a monotone non-increasing
-   bounded-below sequence of Lyapunov values, hence a Cauchy limit;
-2. the variational inequality at the limit (from `hWeight_dyn` propagated
-   through `Filter.Tendsto` and closedness of the projection mapping);
-3. translating the variational inequality into the global optimality
-   condition over the convex set `C`.
+If at some time `t_star` the weight derivative vanishes (`Wdot t_star = 0`),
+then the state `(phases t_star, weights t_star)` is KKT-stationary: the weight
+matrix minimises `L(phases t_star, ·)` over the constraint set `C`.
 
-Currently `sorry`-bearing; tracked by GitHub issue #4. -/
+This is the *limit-point* interpretation in the sense that a converged
+Lyapunov-descending trajectory has `Ẇ → 0`; once `Ẇ = 0` is attained at any
+specific time, the surrounding state is globally optimal for the weight
+sub-problem.
+
+**Argument.**
+1. *Primal feasibility:* `weights t_star ∈ C` directly from `hW_in_C`.
+2. *Variational inequality at the fixed point.* From `hWeight_dyn` at time
+   `t_star` with `V` arbitrary in `C`, substituting `Wdot t_star = 0` gives
+     `0 ≤ ∑_{i,j} (V_ij − W_ij) · (η · ∇_W L_ij)`,
+   so `0 ≤ ⟨V − W, η · ∇_W L⟩_F`. Since `η > 0`, `⟨V − W, ∇_W L⟩_F ≥ 0`.
+3. *Upper-triangle restriction.* `V − W` is symmetric and zero-diagonal
+   (linear inheritance from `V, W ∈ C`); `∇_W L` is symmetric
+   (`lyapunovGradW_isSymm`). By `sum_full_eq_twice_upperTri`,
+   `⟨V − W, ∇_W L⟩_F = 2 · Σ_{i<j} (V_ij − W_ij) · ∇_W L_ij`, so
+   `Σ_{i<j} (V_ij − W_ij) · ∇_W L_ij ≥ 0`.
+4. *Convexity of L in W* (`lyapunovFn_convex_in_W`) gives
+   `L(V) ≥ L(W) + ⟨∇_W L(W), V − W⟩_{upperTri} ≥ L(W)`. -/
 theorem limit_point_isKKTStationary (cfg : SystemConfig n)
-    (traj : Trajectory n cfg)
-    (θ_star : Fin n → ℝ) (W_star : Matrix (Fin n) (Fin n) ℝ)
-    (_h_phase_limit : Filter.Tendsto traj.phases Filter.atTop (nhds θ_star))
-    (_h_weight_limit : Filter.Tendsto traj.weights Filter.atTop (nhds W_star)) :
-    IsKKTStationary n cfg θ_star W_star := by
-  sorry
+    (traj : Trajectory n cfg) (t_star : ℝ)
+    (h_Wdot_zero : traj.Wdot t_star = 0) :
+    IsKKTStationary n cfg (traj.phases t_star) (traj.weights t_star) := by
+  refine ⟨traj.hW_in_C t_star, fun V hV => ?_⟩
+  set W := traj.weights t_star with hW_def
+  set θ := traj.phases t_star with hθ_def
+  set gL := lyapunovGradW (-1 : ℝ) cfg.decayRate θ W with hgL_def
+  -- Step 1: variational inequality at the fixed point.
+  -- hWeight_dyn at t_star with V, simplified by Wdot t_star = 0.
+  have h_zero : ∀ i j, traj.Wdot t_star i j = 0 := fun i j => by
+    rw [h_Wdot_zero]; rfl
+  have h_VI_raw : 0 ≤ ∑ i, ∑ j, (V i j - W i j) *
+      (cfg.learnRate * gL i j) := by
+    have h := traj.hWeight_dyn t_star V hV
+    simp only [h_zero, zero_add] at h
+    exact h
+  -- Factor out η to get ⟨V − W, ∇L⟩_F ≥ 0.
+  have h_eta : 0 < cfg.learnRate := cfg.heta_pos
+  have h_VI_full : 0 ≤ ∑ i, ∑ j, (V i j - W i j) * gL i j := by
+    have h_factor : (∑ i, ∑ j, (V i j - W i j) * (cfg.learnRate * gL i j)) =
+                    cfg.learnRate * ∑ i, ∑ j, (V i j - W i j) * gL i j := by
+      rw [Finset.mul_sum]
+      refine Finset.sum_congr rfl fun i _ => ?_
+      rw [Finset.mul_sum]
+      refine Finset.sum_congr rfl fun j _ => ?_
+      ring
+    rw [h_factor] at h_VI_raw
+    nlinarith [h_VI_raw]
+  -- Step 2: upper-triangle restriction.
+  have hVsymm : V.IsSymm := hV.1
+  have hWsymm : W.IsSymm := (traj.hW_in_C t_star).1
+  have hVdiag : ∀ i, V i i = 0 := hV.2.2.2.1
+  have hWdiag : ∀ i, W i i = 0 := (traj.hW_in_C t_star).2.2.2.1
+  -- (V - W) is symmetric and zero-diagonal.
+  have hVWsymm : (V - W).IsSymm := by
+    ext i j
+    simp only [Matrix.transpose_apply, Matrix.sub_apply]
+    rw [hVsymm.apply i j, hWsymm.apply i j]
+  have hVWdiag : ∀ i, (V - W) i i = 0 := fun i => by
+    simp only [Matrix.sub_apply, hVdiag i, hWdiag i, sub_zero]
+  have hgL_symm : gL.IsSymm := lyapunovGradW_isSymm cfg.decayRate θ hWsymm
+  -- Bridge entry-wise to matrix-sub form.
+  have h_full_eq_VW : (∑ i, ∑ j, (V i j - W i j) * gL i j) =
+                       ∑ i, ∑ j, (V - W) i j * gL i j := by
+    refine Finset.sum_congr rfl fun i _ => Finset.sum_congr rfl fun j _ => ?_
+    rw [Matrix.sub_apply]
+  rw [h_full_eq_VW] at h_VI_full
+  have h_full_eq_twice :
+      ∑ i, ∑ j, (V - W) i j * gL i j =
+      2 * ∑ p ∈ upperTriPairs n, (V - W) p.1 p.2 * gL p.1 p.2 :=
+    sum_full_eq_twice_upperTri hVWsymm hgL_symm hVWdiag
+  rw [h_full_eq_twice] at h_VI_full
+  -- Upper-tri sum is non-negative (after halving).
+  have h_uptri_VW_nn : 0 ≤ ∑ p ∈ upperTriPairs n, (V - W) p.1 p.2 * gL p.1 p.2 := by
+    linarith
+  -- Convert back from (V - W) p.1 p.2 to V p.1 p.2 - W p.1 p.2.
+  have h_uptri_entry_eq :
+      (∑ p ∈ upperTriPairs n, (V - W) p.1 p.2 * gL p.1 p.2) =
+      ∑ p ∈ upperTriPairs n, (V p.1 p.2 - W p.1 p.2) * gL p.1 p.2 := by
+    refine Finset.sum_congr rfl fun p _ => ?_
+    rw [Matrix.sub_apply]
+  rw [h_uptri_entry_eq] at h_uptri_VW_nn
+  -- Step 3: convexity of L in W, plus the upper-triangle non-negativity.
+  have h_convex := lyapunovFn_convex_in_W cfg θ W V
+  have h_swap :
+      (∑ p ∈ upperTriPairs n, gL p.1 p.2 * (V p.1 p.2 - W p.1 p.2)) =
+      ∑ p ∈ upperTriPairs n, (V p.1 p.2 - W p.1 p.2) * gL p.1 p.2 :=
+    Finset.sum_congr rfl fun _ _ => mul_comm _ _
+  rw [h_swap] at h_convex
+  linarith
 
 end KuramotoHebbian

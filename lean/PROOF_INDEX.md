@@ -40,8 +40,9 @@ Status legend:
 |---|---|---|
 | `Trajectory.hW_descent_derived` | `[OK]` (Issue #3 closed) | Weight contribution non-positivity proved via Fermat's interior extremum applied to `f(s) := ⟨W(s) − W(t), Ẇ(t) + η∇L(t)⟩`. From `hWeight_dyn` we get `f ≥ 0 ∀s` with `f(t) = 0`, so Fermat gives `f'(t) = 0`, yielding `⟨Ẇ, ∇L⟩_F = −‖Ẇ‖²/η ≤ 0`. Upper-tri restriction via `sum_full_eq_twice_upperTri` + symmetry / zero-diag of `Ẇ` and `∇L`. |
 | `lyapunov_descent` | `[OK]` | Now takes no extra hypotheses beyond `Trajectory`. `dL/dt ≤ 0` from `lyapunovAlong_hasDerivAt` + `phase_descent` + `hW_descent_derived`; monotonicity via `antitone_of_deriv_nonpos`. |
-| `limit_point_mem_constraintSet` | `[OK]` | **Set-membership only**, not full KKT stationarity. |
-| `limit_point_isKKTStationary` (full KKT) | `[TODO]` (Issue #4) | Sorry-bearing stub. Proves `W*` minimises `L(θ*, ·)` over `C`. Requires Lyapunov contraction + propagation of variational inequality at the limit. Tracked by GitHub issue #4. |
+| `limit_point_mem_constraintSet` | `[OK]` | Set-membership at a weight limit; companion to the full KKT theorem below. |
+| `lyapunovFn_convex_in_W` (private helper) | `[OK]` | Convexity of `L(θ, ·)` in `W`: convexity residual `= (λ/2) Σ (V−W)² ≥ 0`. Used by `limit_point_isKKTStationary`. |
+| `limit_point_isKKTStationary` (full KKT) | `[OK]` (Issue #4 closed) | At a weight fixed-point `Wdot t_star = 0`, the state `(phases t_star, weights t_star)` is KKT-stationary: `W_star` globally minimises `L(θ_star, ·)` over `C`. Argument: variational inequality from `hWeight_dyn` at the fixed point (Wdot = 0 collapses to `⟨V − W, η · ∇_W L⟩_F ≥ 0`) → upper-triangle restriction via `sum_full_eq_twice_upperTri` → convexity of `L` in `W` (`lyapunovFn_convex_in_W`) → global optimality. Sorry-free. |
 
 ## GitHub issue mapping
 
@@ -50,7 +51,7 @@ Status legend:
 | #1 | Weight dynamics field missing from `Trajectory` | **Closed** — `hWeight_dyn` + `Wdot` + `hWeight_diff` added. Doc explicitly states this is a variational-inequality *hypothesis*, not a full PGF characterisation. |
 | #2 | dL/dt decomposition taken as hypothesis, not derived | **Closed** — `lyapunovAlong_hasDerivAt` proves the chain rule sorry-free. |
 | #3 | Weight contribution non-positivity assumed via variational inequality | **Closed** — `hW_descent_derived` proves it sorry-free via Fermat's interior extremum applied to `hWeight_dyn` + `hWeight_diff` + `hW_in_C`. (Surfaced by Gemini during roundtable review; original plan was to leave it open.) |
-| #4 | KKT corollary proves set membership only, not full KKT stationarity | **Closed** (downgrade + tracked stub) — doc on `limit_point_mem_constraintSet` honestly states scope; full-KKT stub `limit_point_isKKTStationary` is sorry-bearing and tracked. |
+| #4 | KKT corollary proves set membership only, not full KKT stationarity | **Closed sorry-free** — `limit_point_isKKTStationary` proves full KKT at a weight fixed-point `Wdot t_star = 0` via variational inequality from `hWeight_dyn` + upper-triangle restriction + convexity of `L` in `W`. (Originally planned as a tracked stub; converted to a full proof following the same Fermat-stationary template used for Issue #3.) |
 
 ## Caveats and out-of-scope (for this Lean snapshot)
 

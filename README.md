@@ -1,5 +1,7 @@
 # Hybrid Adaptive Calibration under Bounded Oscillator Coupling Budgets
 
+[![Live demo](https://img.shields.io/badge/demo-live-d4af37?style=flat-square&logo=github)](https://velvetmonkey.github.io/flywheel-universe/)
+
 The algebraic core of the descent argument has been machine-verified in Lean 4 / Mathlib ([lean/RequestProject/LyapunovDescent.lean](lean/RequestProject/LyapunovDescent.lean)). The formalization establishes convexity and closedness of the constraint set, the key symmetry-based phase contribution identity, and the descent conclusion under explicit hypotheses on the dL/dt decomposition and the projection's variational inequality. Closing the remaining gaps (weight dynamics, chain-rule derivation, projection existence, full KKT stationarity) is the next formalisation step — see open issues.
 
 ## 1. What this is
@@ -47,9 +49,11 @@ python phase2_benchmark.py pilot
 
 ## Interactive Demo
 
-Open [demos/hebbian-kuramoto.html](demos/hebbian-kuramoto.html) in a browser to see Hebbian synchronisation in action.
+**Live:** <https://velvetmonkey.github.io/flywheel-universe/> — no install, no download.
 
-A network of Kuramoto oscillators synchronises via Hebbian learning. Click any node to perturb it — the network remembers and pulls it back. Use the stress test to find the basin boundary.
+A network of Kuramoto oscillators synchronises via Hebbian learning. Five topologies (fully connected, ring, sparse random, hub-spoke, island chain), speed and node-count controls, senescence and learning toggles, and a perturbation slider to find the basin boundary.
+
+Source: [`demos/hebbian-kuramoto.html`](demos/hebbian-kuramoto.html) (also runs standalone in any browser).
 
 ---
 

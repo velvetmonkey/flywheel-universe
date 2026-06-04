@@ -1,0 +1,88 @@
+[start] mode=smoke max_hours=1.0
+[heterogeneity] scope=smoke graph_seeds=1 method_seeds=1 sigmas=[0.0, 1.0]
+[heterogeneity] g=0 seed=0 sigma=0.0 static cut=766 t=1.0s
+[heterogeneity] g=0 seed=0 sigma=0.0 static_budgeted cut=738 t=0.7s
+[heterogeneity] g=0 seed=0 sigma=0.0 random_budgeted cut=748 t=0.6s
+[heterogeneity] g=0 seed=0 sigma=0.0 hybrid_frobenius cut=730 t=43.4s
+[heterogeneity] g=0 seed=0 sigma=0.0 hybrid_support_random_weights cut=730 t=0.4s
+[heterogeneity] g=0 seed=0 sigma=1.0 static cut=747 t=8.8s
+[heterogeneity] g=0 seed=0 sigma=1.0 static_budgeted cut=734 t=3.1s
+[heterogeneity] g=0 seed=0 sigma=1.0 random_budgeted cut=741 t=2.0s
+[heterogeneity] g=0 seed=0 sigma=1.0 hybrid_frobenius cut=735 t=95.1s
+[heterogeneity] g=0 seed=0 sigma=1.0 hybrid_support_random_weights cut=735 t=1.6s
+[supporting] scope=smoke families=['dense_er_200_p15']
+[supporting] dense_er_200_p15 g=0 seed=0 half_mean_deg static cut=1866 t=1.7s
+[supporting] dense_er_200_p15 g=0 seed=0 half_mean_deg static_budgeted cut=1842 t=1.0s
+[supporting] dense_er_200_p15 g=0 seed=0 half_mean_deg random_budgeted cut=1817 t=1.0s
+[supporting] dense_er_200_p15 g=0 seed=0 half_mean_deg hebbian_frobenius cut=1812 t=12.5s
+[supporting] dense_er_200_p15 g=0 seed=0 half_mean_deg hybrid_frobenius cut=1812 t=11.9s
+[supporting] dense_er_200_p15 g=0 seed=0 half_mean_deg topology_scrambled cut=1791 t=28.9s
+[supporting] dense_er_200_p15 g=0 seed=0 half_mean_deg greedy cut=1842 t=0.0s
+[supporting] dense_er_200_p15 g=0 seed=0 mean_deg static cut=1866 t=1.7s
+[supporting] dense_er_200_p15 g=0 seed=0 mean_deg static_budgeted cut=1864 t=1.4s
+[supporting] dense_er_200_p15 g=0 seed=0 mean_deg random_budgeted cut=1852 t=1.0s
+[supporting] dense_er_200_p15 g=0 seed=0 mean_deg hebbian_frobenius cut=1839 t=17.7s
+[supporting] dense_er_200_p15 g=0 seed=0 mean_deg hybrid_frobenius cut=1839 t=18.6s
+[supporting] dense_er_200_p15 g=0 seed=0 mean_deg topology_scrambled cut=1820 t=16.8s
+[supporting] dense_er_200_p15 g=0 seed=0 mean_deg greedy cut=1842 t=0.0s
+[supporting] G14 not present in repo root; skipped to avoid burning time.
+[analyze] wrote results/stability_degradation_slopes.csv, plots, and results/stability_writeup.md
+[start] mode=full max_hours=8.0
+[heterogeneity] scope=full graph_seeds=10 method_seeds=10 sigmas=[0.0, 0.25, 0.5, 1.0]
+[heterogeneity] g=0 seed=0 sigma=0.25 static cut=769 t=1.3s
+[heterogeneity] g=0 seed=0 sigma=0.25 static_budgeted cut=746 t=0.9s
+[heterogeneity] g=0 seed=0 sigma=0.25 random_budgeted cut=751 t=0.6s
+[start] mode=staged max_hours=1.5
+[heterogeneity] scope=staged graph_seeds=3 method_seeds=5 sigmas=[0.0, 0.25, 0.5, 1.0]
+[heterogeneity] g=0 seed=0 sigma=0.25 hybrid_frobenius cut=737 t=94.5s
+[heterogeneity] g=0 seed=0 sigma=0.25 hybrid_support_random_weights cut=737 t=0.4s
+[heterogeneity] g=0 seed=0 sigma=0.5 static cut=752 t=2.6s
+[heterogeneity] g=0 seed=0 sigma=0.5 static_budgeted cut=745 t=1.2s
+[heterogeneity] g=0 seed=0 sigma=0.5 random_budgeted cut=753 t=0.8s
+[heterogeneity] g=0 seed=0 sigma=0.5 hybrid_frobenius cut=715 t=95.8s
+[heterogeneity] g=0 seed=0 sigma=0.5 hybrid_support_random_weights cut=705 t=0.6s
+[heterogeneity] g=0 seed=1 sigma=0.0 static cut=766 t=0.9s
+[heterogeneity] g=0 seed=1 sigma=0.0 static_budgeted cut=754 t=0.7s
+[heterogeneity] g=0 seed=1 sigma=0.0 random_budgeted cut=743 t=0.5s
+[heterogeneity] g=0 seed=1 sigma=0.0 hybrid_frobenius cut=706 t=42.4s
+[heterogeneity] g=0 seed=1 sigma=0.0 hybrid_support_random_weights cut=706 t=0.4s
+[heterogeneity] g=0 seed=1 sigma=0.25 static cut=764 t=1.3s
+[heterogeneity] g=0 seed=1 sigma=0.25 static_budgeted cut=743 t=0.9s
+[heterogeneity] g=0 seed=1 sigma=0.25 random_budgeted cut=747 t=0.7s
+[heterogeneity] g=0 seed=1 sigma=0.25 hybrid_frobenius cut=719 t=89.4s
+[heterogeneity] g=0 seed=1 sigma=0.25 hybrid_support_random_weights cut=719 t=0.6s
+[heterogeneity] g=0 seed=1 sigma=0.5 static cut=767 t=2.5s
+[heterogeneity] g=0 seed=1 sigma=0.5 static_budgeted cut=749 t=1.2s
+[heterogeneity] g=0 seed=1 sigma=0.5 random_budgeted cut=742 t=1.3s
+[heterogeneity] g=0 seed=1 sigma=0.5 hybrid_frobenius cut=721 t=56.0s
+[heterogeneity] g=0 seed=1 sigma=0.5 hybrid_support_random_weights cut=721 t=1.0s
+[heterogeneity] g=0 seed=1 sigma=1.0 static cut=738 t=11.3s
+[heterogeneity] g=0 seed=1 sigma=1.0 static_budgeted cut=747 t=4.2s
+[heterogeneity] g=0 seed=1 sigma=1.0 random_budgeted cut=726 t=5.0s
+[heterogeneity] g=0 seed=1 sigma=1.0 hybrid_frobenius cut=727 t=96.4s
+[heterogeneity] g=0 seed=1 sigma=1.0 hybrid_support_random_weights cut=727 t=2.9s
+[heterogeneity] g=0 seed=2 sigma=0.0 static cut=762 t=1.1s
+[heterogeneity] g=0 seed=2 sigma=0.0 static_budgeted cut=738 t=0.6s
+[heterogeneity] g=0 seed=2 sigma=0.0 random_budgeted cut=754 t=0.5s
+[analyze] wrote results/stability_degradation_slopes.csv, plots, and results/stability_writeup.md
+[supporting] scope=staged families=['gset_g1']
+[supporting] gset_g1 g=0 seed=0 half_mean_deg static_budgeted cut=11479 t=29.9s
+[supporting] gset_g1 g=0 seed=0 half_mean_deg random_budgeted cut=11497 t=27.7s
+[supporting] gset_g1 g=0 seed=0 half_mean_deg hebbian_frobenius cut=11368 t=203.5s
+[supporting] gset_g1 g=0 seed=0 half_mean_deg hybrid_frobenius cut=11368 t=243.2s
+[supporting] gset_g1 g=0 seed=0 half_mean_deg greedy cut=11411 t=0.0s
+[supporting] gset_g1 g=0 seed=1 half_mean_deg static_budgeted cut=11366 t=28.6s
+[supporting] gset_g1 g=0 seed=1 half_mean_deg random_budgeted cut=11463 t=25.4s
+[supporting] gset_g1 g=0 seed=1 half_mean_deg hebbian_frobenius cut=11280 t=124.4s
+[supporting] gset_g1 g=0 seed=1 half_mean_deg hybrid_frobenius cut=11280 t=148.0s
+[supporting] gset_g1 g=0 seed=1 half_mean_deg greedy cut=11309 t=0.2s
+[supporting] gset_g1 g=0 seed=2 half_mean_deg static_budgeted cut=11421 t=28.0s
+[supporting] gset_g1 g=0 seed=2 half_mean_deg random_budgeted cut=11504 t=25.2s
+[supporting] gset_g1 g=0 seed=2 half_mean_deg hebbian_frobenius cut=11315 t=218.8s
+[supporting] gset_g1 g=0 seed=2 half_mean_deg hybrid_frobenius cut=11315 t=241.8s
+[supporting] gset_g1 g=0 seed=2 half_mean_deg greedy cut=11363 t=0.0s
+[supporting] gset_g1 g=0 seed=3 half_mean_deg static_budgeted cut=11434 t=28.2s
+[analyze] wrote results/stability_degradation_slopes.csv, plots, and results/stability_writeup.md
+[analyze] wrote results/stability_degradation_slopes.csv, plots, and results/stability_writeup.md
+[analyze] wrote results/stability_degradation_slopes.csv, plots, and results/stability_writeup.md
+[analyze] wrote results/stability_degradation_slopes.csv, plots, and results/stability_writeup.md

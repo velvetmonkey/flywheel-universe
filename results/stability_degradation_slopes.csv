@@ -1,0 +1,11 @@
+method,graph_seed,method_seed,n_sigmas,slope_ratio_per_sigma
+hybrid_frobenius,0,0,4,0.001409001956946981
+hybrid_frobenius,0,1,4,0.02670983407527273
+hybrid_support_random_weights,0,0,4,-0.00015655577299428117
+hybrid_support_random_weights,0,1,4,0.02670983407527273
+random_budgeted,0,0,4,-0.010236822001527862
+random_budgeted,0,1,4,-0.02553355124014643
+static,0,0,4,-0.028944423722491865
+static,0,1,4,-0.03655352480417773
+static_budgeted,0,0,4,-0.00820751064653553
+static_budgeted,0,1,4,-0.005305039787798564

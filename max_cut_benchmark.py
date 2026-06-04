@@ -42,20 +42,28 @@ def kuramoto_rhs_fast(t, theta, omega, K, W):
     """Vectorised Kuramoto RHS — no Python loops."""
     return omega + K * (W * np.sin(theta[np.newaxis, :] - theta[:, np.newaxis])).sum(axis=1)
 
+def enforce_symmetric_support_budget(W, A_mask, budget):
+    """Symmetrize, re-apply support, then enforce the per-node budget."""
+    W = 0.5 * (W + W.T)
+    W = np.where(A_mask, np.maximum(W, 0.0), 0.0)
+    np.fill_diagonal(W, 0.0)
+    row_totals = W.sum(axis=1)
+    if float(np.max(row_totals - budget)) > 1e-12:
+        scale = np.where(row_totals > budget,
+                         budget / np.maximum(row_totals, 1e-12),
+                         1.0)
+        W = W * np.minimum(scale[:, np.newaxis], scale[np.newaxis, :])
+        W = np.where(A_mask, np.maximum(W, 0.0), 0.0)
+        np.fill_diagonal(W, 0.0)
+    return W
+
 def hebbian_update_fast(W, theta, A_mask, K_sign=1.0, dt=0.5, eta=0.05, lam=0.003, budget=1.0):
     """Vectorised budgeted Hebbian update. Sign-aware: reinforces pairs at the
     equilibrium preferred by the coupling regime (in-phase for K>0, anti-phase
-    for K<0). exist_mask enforced by A_mask. Symmetrised after row-scaling so
-    the resulting W is a valid undirected weighted adjacency."""
+    for K<0). exist_mask enforced by A_mask."""
     cos_diff = np.cos(theta[np.newaxis, :] - theta[:, np.newaxis])
     W = W + dt * eta * (K_sign * cos_diff - lam * W)
-    W = np.where(A_mask, np.maximum(W, 0.0), 0.0)
-    row_totals = W.sum(axis=1) + 1e-12
-    scale = np.minimum(1.0, budget / row_totals)
-    W = W * scale[:, np.newaxis]
-    W = (W + W.T) / 2
-    W = np.where(A_mask, np.maximum(W, 0.0), 0.0)
-    return W
+    return enforce_symmetric_support_budget(W, A_mask, budget)
 
 def extract_cut(G, theta):
     nodes = sorted(G.nodes())

@@ -211,6 +211,25 @@ def project_frobenius(W, prob, Y_param, X_var, first_call=False):
     _PROJ_STATS['count'] += 1
     return X
 
+def enforce_symmetric_support_budget(W, A_mask, budget):
+    """Final guard for Hebbian updates: symmetry, fixed support, and row budget.
+
+    This is intentionally applied after every adaptive weight update. A previous
+    row-scale-then-symmetrize order can reintroduce row-budget violations.
+    """
+    W = 0.5 * (W + W.T)
+    W = np.where(A_mask, np.maximum(W, 0.0), 0.0)
+    np.fill_diagonal(W, 0.0)
+    row_sums = W.sum(axis=1)
+    if float(np.max(row_sums - budget)) > 1e-12:
+        factor = np.where(row_sums > budget,
+                          budget / np.maximum(row_sums, 1e-12),
+                          1.0)
+        W = W * np.minimum(factor[:, None], factor[None, :])
+        W = np.where(A_mask, np.maximum(W, 0.0), 0.0)
+        np.fill_diagonal(W, 0.0)
+    return W
+
 def project_sinkhorn(W, budget, A_mask, max_iters=100, tol=1e-9):
     """Sinkhorn-style alternating projection (named ablation).
 
@@ -234,18 +253,7 @@ def project_sinkhorn(W, budget, A_mask, max_iters=100, tol=1e-9):
             break
         W = W_new
 
-    # Strict budget enforcement (same as project_frobenius_dual)
-    row_sums = W.sum(axis=1)
-    overshoot = row_sums - budget
-    if float(np.max(overshoot)) > 1e-12:
-        factor = np.where(row_sums > budget,
-                          budget / np.maximum(row_sums, 1e-12),
-                          1.0)
-        sym_factor = np.minimum(factor[:, None], factor[None, :])
-        W = W * sym_factor
-        W[~A_mask] = 0
-        np.fill_diagonal(W, 0)
-    return W
+    return enforce_symmetric_support_budget(W, A_mask, budget)
 
 def unit_test_projection(n_problems=20, n=10):
     """Validate project_frobenius_dual against CVXPY across N random problems at n=10.
@@ -536,6 +544,7 @@ def run_hebbian_staggered(theta0, W0, omega, K_sign, a_gains, prob, Y_param, X_v
             first = False
         else:
             W = project_sinkhorn(W_raw, budget, A_mask)
+        W = enforce_symmetric_support_budget(W, A_mask, budget)
         proj_calls += 1
         adaptive_updates += 1
 

@@ -346,13 +346,13 @@
       <label>Topology</label>
       <div class="seg-group">
         <button class="seg" data-topo="full">Fully&nbsp;Connected</button>
-        <button class="seg active" data-topo="ring">Ring</button>
+        <button class="seg" data-topo="ring">Ring</button>
         <button class="seg" data-topo="sparse">Sparse&nbsp;Random</button>
         <button class="seg" data-topo="hub">Hub-Spoke</button>
-        <button class="seg" data-topo="island">Island&nbsp;Chain</button>
+        <button class="seg active" data-topo="island">Island&nbsp;Chain</button>
       </div>
     </div>
-    <div class="topo-desc" id="topoDesc">Nearest-neighbour only — damage propagates locally</div>
+    <div class="topo-desc" id="topoDesc">Bridge nodes determine cross-cluster sync</div>
   </div>
 
   <div class="panel">
@@ -368,8 +368,8 @@
   <div class="panel">
     <label>Nodes</label>
     <div class="slider-wrap">
-      <input type="range" id="nodeN" min="0" max="5" step="1" value="2">
-      <div id="nodeNValue" class="slider-value">14</div>
+      <input type="range" id="nodeN" min="0" max="5" step="1" value="4">
+      <div id="nodeNValue" class="slider-value">24</div>
     </div>
   </div>
 
@@ -406,7 +406,7 @@
   // ────────────────────────────────────────────────────────────────────────
   //  CONFIGURATION
   // ────────────────────────────────────────────────────────────────────────
-  let   N            = 14;          // number of oscillators (mutable via NODES slider)
+  let   N            = 24;          // number of oscillators (mutable via NODES slider)
   const N_OPTIONS    = [8, 12, 14, 20, 24, 32];
   const N_ISLAND_DEFAULT = 24;      // island chain prefers ~3 nodes per cluster (8 clusters)
   const N_ISLAND_MAX     = 32;      // island chain clamps slider to this
@@ -460,7 +460,7 @@
   let nodeRoles    = [];        // per-node 'hub' | 'bridge' | null (for labels + special layout)
   let nodeXY       = [];        // per-node {x, y} — topology-dependent canvas position
   let bridgePairs  = [];        // [[i,j], ...] — pairs that should seed at K_BRIDGE_INIT (island chain)
-  let topology     = 'ring';    // 'full' | 'ring' | 'sparse' | 'hub' | 'island'
+  let topology     = 'island';  // 'full' | 'ring' | 'sparse' | 'hub' | 'island'
   let speedMult    = 1.0;       // simulation speed multiplier
   let senescence   = false;     // second-order Hebbian decay on stable pairs
   let learning     = true;      // when false, K freezes; phases continue

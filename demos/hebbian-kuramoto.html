@@ -105,6 +105,7 @@
   #verdict .vline.orange  { color: var(--orange);  text-shadow: 0 0 12px rgba(255,138,61,0.4); }
   #verdict .vline.collapsed { color: var(--red); text-shadow: 0 0 12px rgba(255,77,77,0.35); }
   #verdict .vline.resolving { color: var(--gold); }
+  #verdict .vline.recovered { color: var(--green); text-shadow: 0 0 12px rgba(74,222,128,0.4); }
   #verdict .sub { color: var(--ink-3); font-size: 10px; margin-top: 2px; }
 
   .controls {
@@ -802,27 +803,41 @@
       }
     }
 
-    // Verdict resolution
-    if (scenario && !scenario.resolved) {
+    // Verdict resolution — LIVE and self-correcting. A blue/orange win is
+    // terminal (one basin absorbed the other). A FORGOT is NOT terminal: a knock
+    // near the capacity limit can crawl back to consensus over the following
+    // minutes, so we keep watching a collapsed verdict and flip it to RELEARNED
+    // (restoring the healers) if r climbs back above lock. This stops the stale
+    // "memory dissolved" label from sitting on screen while synchrony reads 100%.
+    if (scenario) {
       const elapsed = simTime - scenario.startSim;
-      const lock    = op.r > VERDICT_R;
-      const collapsed = elapsed > VERDICT_TIME * 0.6 && op.r < COLLAPSE_R;
-      if (lock || elapsed > VERDICT_TIME) {
-        scenario.resolved = true;
-        if (op.r < COLLAPSE_R) {
-          renderVerdict({ type: 'collapsed' });
-        } else {
-          const dB = Math.abs(angleDiff(op.phase, scenario.bluePhase));
-          const dO = Math.abs(angleDiff(op.phase, scenario.orangePhase));
-          renderVerdict({
-            type:   dB < dO ? 'blue' : 'orange',
-            blueN:  scenario.blueIdx.length,
-            oraN:   scenario.orangeIdx.length,
-          });
+      if (!scenario.resolved) {
+        const lock      = op.r > VERDICT_R;
+        const collapsed = elapsed > VERDICT_TIME * 0.6 && op.r < COLLAPSE_R;
+        if (lock || elapsed > VERDICT_TIME) {
+          scenario.resolved = true;
+          if (op.r < COLLAPSE_R) {
+            scenario.outcome = 'collapsed';
+            renderVerdict({ type: 'collapsed' });   // keep scenario alive to watch for recovery
+          } else {
+            const dB = Math.abs(angleDiff(op.phase, scenario.bluePhase));
+            const dO = Math.abs(angleDiff(op.phase, scenario.orangePhase));
+            renderVerdict({
+              type:   dB < dO ? 'blue' : 'orange',
+              blueN:  scenario.blueIdx.length,
+              oraN:   scenario.orangeIdx.length,
+            });
+            scenario = null;                          // a winner is terminal
+          }
+        } else if (collapsed) {
+          renderVerdict({ type: 'resolving', blueN: scenario.blueIdx.length, oraN: scenario.orangeIdx.length, hint: 'fragmenting…' });
         }
-      } else if (collapsed) {
-        // Show early collapse warning but keep timer running in case it recovers
-        renderVerdict({ type: 'resolving', blueN: scenario.blueIdx.length, oraN: scenario.orangeIdx.length, hint: 'fragmenting…' });
+      } else if (scenario.outcome === 'collapsed' && op.r > VERDICT_R) {
+        // A forgotten network clawed back to consensus — it relearned. Restore
+        // the healers (the wipe was survivable) and flip the verdict honestly.
+        breached = false;
+        renderVerdict({ type: 'recovered' });
+        scenario = null;
       }
     }
   }
@@ -1111,6 +1126,11 @@
         `<div class="vlabel">Verdict</div>
          <div class="vline collapsed">NETWORK FORGOT</div>
          <div class="sub">memory dissolved</div>`;
+    } else if (v.type === 'recovered') {
+      $verdict.innerHTML =
+        `<div class="vlabel">Verdict</div>
+         <div class="vline recovered">RELEARNED</div>
+         <div class="sub">consensus rebuilt from the wreckage</div>`;
     }
   }
 

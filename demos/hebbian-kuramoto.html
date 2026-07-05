@@ -359,8 +359,8 @@
     <label>Speed</label>
     <div class="seg-group">
       <button class="seg" data-speed="0.25">0.25×</button>
-      <button class="seg active" data-speed="1">1×</button>
-      <button class="seg" data-speed="2">2×</button>
+      <button class="seg" data-speed="1">1×</button>
+      <button class="seg active" data-speed="2">2×</button>
       <button class="seg" data-speed="4">4×</button>
     </div>
   </div>
@@ -461,7 +461,7 @@
   let nodeXY       = [];        // per-node {x, y} — topology-dependent canvas position
   let bridgePairs  = [];        // [[i,j], ...] — pairs that should seed at K_BRIDGE_INIT (island chain)
   let topology     = 'island';  // 'full' | 'ring' | 'sparse' | 'hub' | 'island'
-  let speedMult    = 1.0;       // simulation speed multiplier
+  let speedMult    = 2.0;       // simulation speed multiplier
   let senescence   = false;     // second-order Hebbian decay on stable pairs
   let learning     = true;      // when false, K freezes; phases continue
   let simTime      = 0;

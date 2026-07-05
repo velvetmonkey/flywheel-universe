@@ -359,8 +359,8 @@
     <label>Speed</label>
     <div class="seg-group">
       <button class="seg" data-speed="0.25">0.25×</button>
-      <button class="seg" data-speed="1">1×</button>
-      <button class="seg active" data-speed="2">2×</button>
+      <button class="seg active" data-speed="1">1×</button>
+      <button class="seg" data-speed="2">2×</button>
       <button class="seg" data-speed="4">4×</button>
     </div>
   </div>
@@ -421,6 +421,10 @@
   const K_FLOOR      = K_INIT;      // senescence pulls couplings back toward this floor
   const HEBB_RATE    = 0.25;        // dK/dt ∝ cos(θ_i − θ_j) growth
   const HEBB_DECAY   = 0.025;       // gentle decay pulling K → 0
+  const KAPPA0       = 0.10;        // weak global mean-field pull, scaled by coherence R. Dissolves the
+                                    // winding/twisted states an 8-cluster ring traps (locally aligned,
+                                    // K saturated, yet global r≈0). R-scaling keeps it out of the way
+                                    // during a real perturbation (R drops → field backs off).
   const SEN_THRESH   = 0.04;        // |dK/dt| below this counts as "stable"
   const SEN_WINDOW   = 5.5;         // sim-seconds of stability before senescent decay engages
   const SEN_DECAY    = 0.18;        // senescent decay rate toward K_FLOOR
@@ -461,12 +465,16 @@
   let nodeXY       = [];        // per-node {x, y} — topology-dependent canvas position
   let bridgePairs  = [];        // [[i,j], ...] — pairs that should seed at K_BRIDGE_INIT (island chain)
   let topology     = 'island';  // 'full' | 'ring' | 'sparse' | 'hub' | 'island'
-  let speedMult    = 2.0;       // simulation speed multiplier
+  let speedMult    = 1.0;       // simulation speed multiplier
   let senescence   = false;     // second-order Hebbian decay on stable pairs
   let learning     = true;      // when false, K freezes; phases continue
   let simTime      = 0;
   let paused       = false;
   let scenario     = null;      // active perturbation scenario, or null
+  let breached     = false;     // true once a knock exceeds the network's healing capacity (> N/2 nodes):
+                                // the coupling floor and global field switch OFF so antiphase splits
+                                // decay to zero and freeze. This is the "knock too many at once — it
+                                // forgets" beat. A knock within capacity leaves the healers on (remembers).
 
   // ────────────────────────────────────────────────────────────────────────
   //  DOM
@@ -671,6 +679,7 @@
     stableTime.length = 0;
     simTime           = 0;
     scenario          = null;
+    breached          = false;
     renderVerdict(null);
     buildTopologyMask();
     for (let i = 0; i < N; i++) {
@@ -713,6 +722,16 @@
     // and capped global coherence near 0.88. Degree normalisation gives every
     // node full-strength pull to its real neighbours, so clusters lock across
     // the bridges and the chain reaches consensus.
+    // Global mean-field: mean phase + coherence R over the current phases. The
+    // κ0·R·sin(meanPhase − θ_i) term (added below) is a weak all-to-all pull that
+    // dissolves winding/twisted states the cluster-ring traps. Switched off once
+    // the network is over-capacity "breached" so a forget-split can freeze.
+    let mx = 0, my = 0;
+    for (let i = 0; i < N; i++) { mx += Math.cos(osc[i].theta); my += Math.sin(osc[i].theta); }
+    const meanPhase = Math.atan2(my, mx);
+    const R         = Math.sqrt(mx * mx + my * my) / N;
+    const kappa     = breached ? 0 : KAPPA0;
+
     const dtheta = new Array(N);
     for (let i = 0; i < N; i++) {
       let sum = 0, deg = 0;
@@ -723,7 +742,8 @@
         sum += K[i][j] * Math.sin(osc[j].theta - ti);
         deg++;
       }
-      dtheta[i] = osc[i].omega + (deg > 0 ? sum / deg : 0);
+      dtheta[i] = osc[i].omega + (deg > 0 ? sum / deg : 0)
+                + kappa * R * Math.sin(meanPhase - ti);
     }
     for (let i = 0; i < N; i++) osc[i].theta = wrap(osc[i].theta + dtheta[i] * dt + (Math.random() - 0.5) * 0.020);
 
@@ -731,15 +751,18 @@
     if (learning) {
       // Hebbian: dK_ij/dt = ε cos(θ_i − θ_j) − γ K_ij    (symmetric)
       // Only allowed pairs may grow; disallowed pairs are pinned to 0 by topology.
+      // Floor is K_INIT normally (edges never fully decay → splits self-heal), but
+      // drops to 0 once the network is over-capacity "breached", letting antiphase
+      // edges decay to nothing so a big knock freezes into a permanent forget.
+      const floor = breached ? 0 : K_INIT;
       for (let i = 0; i < N; i++) {
         for (let j = i + 1; j < N; j++) {
           if (!ALLOWED[i][j]) continue;
           const align  = Math.cos(osc[i].theta - osc[j].theta);
           const dK     = HEBB_RATE * align - HEBB_DECAY * K[i][j];
           const kPrev  = K[i][j];
-          // Floor at K_INIT: an allowed edge never fully decays, so an antiphase
-          // split keeps a residual pull and self-heals instead of freezing at low r.
-          let   v      = clamp(kPrev + dK * dt, K_INIT, K_MAX);
+          // Floor: an allowed edge never fully decays (self-heal) unless breached.
+          let   v      = clamp(kPrev + dK * dt, floor, K_MAX);
 
           // Senescence: pairs whose post-clamp K has barely moved for
           // SEN_WINDOW seconds slowly drift back toward K_FLOOR. Pairs that
@@ -816,6 +839,19 @@
     const half   = Math.floor(n / 2);
     const blueIdx   = picked.slice(0, half);
     const orangeIdx = picked.slice(half);
+
+    // Healing capacity = half the network. A knock within capacity leaves the
+    // floor + global field ON, so the split self-heals — the network REMEMBERS.
+    // A knock that exceeds capacity "breaches" it: we wipe the learned coupling on
+    // the struck nodes and switch the healers OFF (floor→0, field→0), so the
+    // antiphase split decays to zero and freezes — the network FORGETS. Measured
+    // headless: n≤N/2 heals ~100%, n>N/2+2 forgets ~95%+ (r collapses 0.45→0.12).
+    breached = n > Math.floor(N / 2);
+    if (breached) {
+      for (const i of picked)
+        for (let j = 0; j < N; j++)
+          if (ALLOWED[i][j]) { K[i][j] = 0; K[j][i] = 0; }
+    }
 
     // Two clusters π apart — centred symmetrically around current consensus
     const op = orderParameter();

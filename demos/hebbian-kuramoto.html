@@ -472,6 +472,7 @@
   let simTime      = 0;
   let paused       = false;
   let scenario     = null;      // active perturbation scenario, or null
+  let freeVerdict  = true;      // show the live consensus verdict when no scenario is active
   let breached     = false;     // true once a knock exceeds the network's healing capacity (> N/2 nodes):
                                 // the coupling floor and global field switch OFF so antiphase splits
                                 // decay to zero and freeze. This is the "knock too many at once — it
@@ -681,6 +682,7 @@
     simTime           = 0;
     scenario          = null;
     breached          = false;
+    freeVerdict       = true;
     renderVerdict(null);
     buildTopologyMask();
     for (let i = 0; i < N; i++) {
@@ -839,6 +841,10 @@
         renderVerdict({ type: 'recovered' });
         scenario = null;
       }
+    } else if (freeVerdict) {
+      // Free-running (no perturbation): show the live consensus verdict so the
+      // panel reads from boot, not only after a Perturb.
+      renderVerdict(op.r >= VERDICT_R ? { type: 'locked', r: op.r } : { type: 'syncing', r: op.r });
     }
   }
 
@@ -890,6 +896,7 @@
       osc[i].perturbedAt = simTime;
     });
 
+    freeVerdict = false;
     scenario = {
       blueIdx, orangeIdx,
       bluePhase, orangePhase,
@@ -1131,6 +1138,16 @@
         `<div class="vlabel">Verdict</div>
          <div class="vline recovered">RELEARNED</div>
          <div class="sub">consensus rebuilt from the wreckage</div>`;
+    } else if (v.type === 'syncing') {
+      $verdict.innerHTML =
+        `<div class="vlabel">Consensus</div>
+         <div class="vline resolving">SYNCING ${Math.round(v.r * 100)}%</div>
+         <div class="sub">Hebbian couplings forming</div>`;
+    } else if (v.type === 'locked') {
+      $verdict.innerHTML =
+        `<div class="vlabel">Consensus</div>
+         <div class="vline recovered">CONSENSUS LOCKED</div>
+         <div class="sub">coherence ${Math.round(v.r * 100)}%</div>`;
     }
   }
 

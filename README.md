@@ -87,3 +87,5 @@ Research and experiments:
 - [flywheel-velvetgram](https://github.com/velvetmonkey/flywheel-velvetgram) — Local widescreen Telegram reader for long-form reading.
 
 Verified-cognition demo: [mcp-seal](https://github.com/velvetmonkey/mcp-seal) (verified MCP approval gate) and [canary](https://github.com/velvetmonkey/canary) (the seal demo host).
+
+Verified proofs: [lean](https://github.com/velvetmonkey/lean) — unified index of the Lean 4 / Mathlib proof corpus. Live: <https://velvetmonkey.github.io/lean/>.

@@ -66,19 +66,3 @@ Source: [`demos/hebbian-kuramoto.html`](demos/hebbian-kuramoto.html) (also runs 
 ---
 
 Earlier framing of this repository — the universe / boundary-rider / cosmology-web analogies, the "six primitives" rhetoric, and the pre-Phase-2 Max-Cut numbers — is preserved in [`EXPLORATORY_NOTES.md`](EXPLORATORY_NOTES.md) and is not part of the main technical claim.
-
-## Related repositories
-
-Part of the **Flywheel suite** — local-first knowledge infrastructure over a plain-markdown Obsidian vault:
-
-- [vault-core](https://github.com/velvetmonkey/vault-core) — Shared infrastructure for the Flywheel ecosystem.
-- [mega-monkey](https://github.com/velvetmonkey/mega-monkey) — Telegram-native AI research cockpit over an Obsidian vault.
-- [roundtable](https://github.com/velvetmonkey/roundtable) — Local MCP server for delegating tasks to multiple AI models.
-
-Research and experiments:
-
-- **flywheel-universe** (this repo) — Lean 4 / Mathlib-verified core of the descent argument.
-
-Verified-cognition demo: [mcp-seal](https://github.com/velvetmonkey/mcp-seal) (verified MCP approval gate) and [canary](https://github.com/velvetmonkey/canary) (the seal demo host).
-
-Verified proofs: [lean](https://github.com/velvetmonkey/lean) — unified index of the Lean 4 / Mathlib proof corpus. Live: <https://velvetmonkey.github.io/lean/>.

@@ -727,13 +727,18 @@
     // the bridges and the chain reaches consensus.
     // Global mean-field: mean phase + coherence R over the current phases. The
     // κ0·R·sin(meanPhase − θ_i) term (added below) is a weak all-to-all pull that
-    // dissolves winding/twisted states the cluster-ring traps. Switched off once
-    // the network is over-capacity "breached" so a forget-split can freeze.
+    // dissolves winding/twisted states the cluster-ring traps. Kept as a WEAK
+    // residual once the network is over-capacity "breached" (was fully off): the
+    // forget-split still decays to nothing visually, but the residual pull lets it
+    // crawl back to consensus over time so "breached" can clear and the coupling
+    // (with its edges) regrows — the RELEARNED path. Without it, breached was a
+    // dead trap: floor=0 AND field=0 meant r could never climb, so the recovery
+    // branch was unreachable and the edges never repainted (fix 2026-07-06).
     let mx = 0, my = 0;
     for (let i = 0; i < N; i++) { mx += Math.cos(osc[i].theta); my += Math.sin(osc[i].theta); }
     const meanPhase = Math.atan2(my, mx);
     const R         = Math.sqrt(mx * mx + my * my) / N;
-    const kappa     = breached ? 0 : KAPPA0;
+    const kappa     = breached ? KAPPA0 * 0.12 : KAPPA0;
 
     const dtheta = new Array(N);
     for (let i = 0; i < N; i++) {

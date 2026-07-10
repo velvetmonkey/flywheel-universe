@@ -13,6 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: cp demos/hebbian-kuramoto.html docs/index.html
+      - run: cp demos/hebbian-kuramoto.html docs/hebbian-kuramoto.html
       - run: cp demos/coordination-kernel.html docs/coordination-kernel.html
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:

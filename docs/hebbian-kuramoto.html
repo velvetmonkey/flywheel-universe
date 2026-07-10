@@ -1,0 +1,1237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hebbian Kuramoto — Basin Boundary</title>
+<style>
+  :root {
+    --bg:        #07070d;
+    --bg-2:     #11111a;
+    --panel:    #14141f;
+    --panel-2:  #1c1c2a;
+    --line:     #23233a;
+    --ink:      #e8e8f0;
+    --ink-2:    #9090a0;
+    --ink-3:    #6a6a78;
+    --gold:     #d4af37;
+    --gold-2:   #f0c84a;
+    --blue:     #4a9eff;
+    --orange:   #ff8a3d;
+    --red:      #ff4d4d;
+    --green:    #4ade80;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background:
+      radial-gradient(circle at 20% 0%, rgba(212,175,55,0.04), transparent 40%),
+      radial-gradient(circle at 80% 100%, rgba(74,158,255,0.03), transparent 40%),
+      var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 20px 48px;
+    -webkit-font-smoothing: antialiased;
+  }
+  header {
+    text-align: center;
+    margin-bottom: 18px;
+    max-width: 620px;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    opacity: 0.85;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0 0 12px;
+  }
+  .story {
+    color: var(--ink-2);
+    font-size: 14px;
+    line-height: 1.65;
+    font-style: italic;
+    margin: 0;
+  }
+  .story strong { color: var(--ink); font-style: normal; font-weight: 500; }
+
+  .stage {
+    position: relative;
+    margin: 24px 0 20px;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow:
+      0 0 0 1px var(--line),
+      0 30px 80px rgba(0,0,0,0.6);
+  }
+  canvas {
+    display: block;
+    background:
+      radial-gradient(ellipse at center, #15151f 0%, #08080f 70%);
+  }
+
+  .hud {
+    position: absolute;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    pointer-events: none;
+  }
+  .hud.tl { top: 16px; left: 18px; }
+  .hud.tr { top: 16px; right: 18px; text-align: right; }
+  .hud.bl { bottom: 16px; left: 18px; }
+  .hud .label { color: var(--ink-3); text-transform: uppercase; }
+  .hud .val { color: var(--ink); font-weight: 600; }
+  .hud .row { line-height: 1.7; }
+  .hud .row .val { display: inline-block; min-width: 56px; }
+
+  #verdict { min-height: 50px; }
+  #verdict .vlabel { color: var(--ink-3); text-transform: uppercase; }
+  #verdict .vline { font-size: 14px; font-weight: 700; letter-spacing: 0.04em; margin-top: 2px; }
+  #verdict .vline.blue    { color: var(--blue);    text-shadow: 0 0 12px rgba(74,158,255,0.4); }
+  #verdict .vline.orange  { color: var(--orange);  text-shadow: 0 0 12px rgba(255,138,61,0.4); }
+  #verdict .vline.collapsed { color: var(--red); text-shadow: 0 0 12px rgba(255,77,77,0.35); }
+  #verdict .vline.resolving { color: var(--gold); }
+  #verdict .vline.recovered { color: var(--green); text-shadow: 0 0 12px rgba(74,222,128,0.4); }
+  #verdict .sub { color: var(--ink-3); font-size: 10px; margin-top: 2px; }
+
+  .controls {
+    width: 100%;
+    max-width: 720px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .panel label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    min-width: 96px;
+  }
+  .slider-wrap { flex: 1; display: flex; align-items: center; gap: 12px; }
+  input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 1;
+    height: 4px;
+    background: var(--panel-2);
+    border-radius: 2px;
+    outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    background: var(--gold);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 0 4px rgba(212,175,55,0.15);
+    transition: box-shadow .15s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover { box-shadow: 0 0 0 6px rgba(212,175,55,0.22); }
+  input[type=range]::-moz-range-thumb {
+    width: 16px; height: 16px;
+    background: var(--gold);
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+  }
+  .slider-value {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink);
+    min-width: 28px;
+    text-align: right;
+  }
+
+  .age-bar { flex: 1; display: flex; align-items: center; gap: 12px; }
+  .age-meter {
+    flex: 1;
+    height: 6px;
+    background: var(--panel-2);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+  }
+  .age-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--blue) 0%, var(--gold) 55%, var(--green) 100%);
+    transition: width 0.4s ease;
+    box-shadow: 0 0 12px rgba(212,175,55,0.3);
+  }
+  .age-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    min-width: 64px;
+    text-align: right;
+  }
+  .age-label.weak   { color: var(--blue); }
+  .age-label.medium { color: var(--gold); }
+  .age-label.strong { color: var(--green); }
+
+  button {
+    background: var(--gold);
+    color: #0a0a0f;
+    border: none;
+    border-radius: 6px;
+    padding: 9px 16px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background .15s, transform .05s;
+  }
+  button:hover { background: var(--gold-2); }
+  button:active { transform: translateY(1px); }
+  button.ghost {
+    background: transparent;
+    color: var(--ink-2);
+    border: 1px solid var(--line);
+  }
+  button.ghost:hover { color: var(--ink); border-color: #3a3a52; }
+
+  .seg-group {
+    display: flex;
+    gap: 4px;
+    flex: 1;
+    flex-wrap: wrap;
+  }
+  button.seg {
+    background: var(--panel-2);
+    color: var(--ink-3);
+    border: 1px solid var(--line);
+    padding: 7px 10px;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    flex: 1;
+    min-width: 0;
+  }
+  button.seg:hover { color: var(--ink-2); border-color: #3a3a52; background: var(--panel-2); }
+  button.seg.active {
+    background: var(--gold);
+    color: #0a0a0f;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(212,175,55,0.15);
+  }
+  button.seg.active:hover { background: var(--gold-2); color: #0a0a0f; }
+
+  .panel.stack { flex-direction: column; align-items: stretch; gap: 8px; }
+  .panel.stack > .row { display: flex; align-items: center; gap: 14px; }
+  .topo-desc {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-3);
+    letter-spacing: 0.06em;
+    padding-left: 110px;
+    font-style: italic;
+    min-height: 12px;
+  }
+  @media (max-width: 620px) { .topo-desc { padding-left: 0; } }
+
+  button.toggle {
+    background: var(--panel-2);
+    color: var(--ink-3);
+    border: 1px solid var(--line);
+    padding: 7px 12px;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+  }
+  button.toggle:hover { color: var(--ink-2); border-color: #3a3a52; background: var(--panel-2); }
+  button.toggle.on {
+    background: var(--gold);
+    color: #0a0a0f;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(212,175,55,0.15);
+  }
+  button.toggle.on:hover { background: var(--gold-2); color: #0a0a0f; }
+
+  .legend {
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-3);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .swatch {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .swatch.blue   { background: var(--blue);   box-shadow: 0 0 8px var(--blue); }
+  .swatch.orange { background: var(--orange); box-shadow: 0 0 8px var(--orange); }
+  .swatch.gold   { background: var(--gold);   box-shadow: 0 0 8px var(--gold); }
+
+  @media (max-width: 620px) {
+    .panel { flex-wrap: wrap; }
+    .panel label { min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Hebbian Kuramoto · Basin Boundary</div>
+  <h1>The network that learns its own connections</h1>
+  <p class="story">
+    Random clocks. Smart coupling. They find each other.<br>
+    Knock one out — the network remembers. <strong>Knock too many at once — it forgets.</strong>
+  </p>
+</header>
+
+<div class="stage">
+  <canvas id="c" width="720" height="720"></canvas>
+
+  <div class="hud tl">
+    <div class="row"><span class="label">SYNCHRONY</span> <span id="sync" class="val" style="color:var(--gold)">0%</span></div>
+    <div class="row"><span class="label">MEAN&nbsp;K</span> <span id="meanK" class="val">0.00</span></div>
+    <div class="row"><span class="label">TIME</span> <span id="time" class="val">0.0s</span></div>
+  </div>
+
+  <div class="hud tr" id="verdict"></div>
+
+  <div class="hud bl">
+    <div class="legend">
+      <span><span class="swatch gold"></span>Coupling</span>
+      <span><span class="swatch blue"></span>Cluster A</span>
+      <span><span class="swatch orange"></span>Cluster B</span>
+    </div>
+  </div>
+</div>
+
+<div class="controls">
+
+  <div class="panel">
+    <label id="ageTitle">Coupling age</label>
+    <div class="age-bar">
+      <div class="age-meter"><div id="ageFill" class="age-fill"></div></div>
+      <div id="ageLabel" class="age-label weak">WEAK</div>
+    </div>
+  </div>
+
+  <div class="panel stack">
+    <div class="row">
+      <label>Topology</label>
+      <div class="seg-group">
+        <button class="seg" data-topo="full">Fully&nbsp;Connected</button>
+        <button class="seg" data-topo="ring">Ring</button>
+        <button class="seg" data-topo="sparse">Sparse&nbsp;Random</button>
+        <button class="seg" data-topo="hub">Hub-Spoke</button>
+        <button class="seg active" data-topo="island">Island&nbsp;Chain</button>
+      </div>
+    </div>
+    <div class="topo-desc" id="topoDesc">Bridge nodes determine cross-cluster sync</div>
+  </div>
+
+  <div class="panel">
+    <label>Speed</label>
+    <div class="seg-group">
+      <button class="seg" data-speed="0.25">0.25×</button>
+      <button class="seg active" data-speed="1">1×</button>
+      <button class="seg" data-speed="2">2×</button>
+      <button class="seg" data-speed="4">4×</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <label>Nodes</label>
+    <div class="slider-wrap">
+      <input type="range" id="nodeN" min="0" max="5" step="1" value="4">
+      <div id="nodeNValue" class="slider-value">24</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <label>Modes</label>
+    <button class="toggle" id="senBtn">Senescence:&nbsp;OFF</button>
+    <button class="toggle on" id="learnBtn">Learning:&nbsp;ON</button>
+  </div>
+
+  <div class="panel">
+    <label>Perturb count</label>
+    <div class="slider-wrap">
+      <input type="range" id="perturbN" min="2" max="14" step="2" value="6">
+      <div id="perturbNValue" class="slider-value">6</div>
+    </div>
+    <button id="perturbBtn">Perturb&nbsp;Now</button>
+  </div>
+
+  <div class="panel">
+    <button class="ghost" id="resetBtn">Reset</button>
+    <button class="ghost" id="pauseBtn">Pause</button>
+    <div style="flex:1"></div>
+    <span style="font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:0.1em;text-transform:uppercase">
+      Half kicked to +π/2 · half to −π/2 · they fight for consensus
+    </span>
+  </div>
+
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ────────────────────────────────────────────────────────────────────────
+  //  CONFIGURATION
+  // ────────────────────────────────────────────────────────────────────────
+  let   N            = 24;          // number of oscillators (mutable via NODES slider)
+  const N_OPTIONS    = [8, 12, 14, 20, 24, 32];
+  const N_ISLAND_DEFAULT = 24;      // island chain prefers ~3 nodes per cluster (8 clusters)
+  const N_ISLAND_MAX     = 32;      // island chain clamps slider to this
+  const N_ISLAND_CLUSTERS = 8;      // number of clusters in the amoeba chain
+  const K_BRIDGE_INIT     = 1.5;    // bridge-edge K at init (10x K_INIT) so all chain links render from the start
+  const DT           = 0.035;       // integration timestep
+  const SUBSTEPS     = 2;           // physics steps per frame
+  const OMEGA_MEAN   = 1.0;         // natural frequency centre
+  const OMEGA_SPREAD = 0.08;        // natural frequency spread
+  const K_INIT       = 0.15;        // initial + floor coupling strength (allowed edges never decay below this)
+  const K_MAX        = 1.62;        // saturation cap
+  const K_FLOOR      = K_INIT;      // senescence pulls couplings back toward this floor
+  const HEBB_RATE    = 0.25;        // dK/dt ∝ cos(θ_i − θ_j) growth
+  const HEBB_DECAY   = 0.025;       // gentle decay pulling K → 0
+  const KAPPA0       = 0.10;        // weak global mean-field pull, scaled by coherence R. Dissolves the
+                                    // winding/twisted states an 8-cluster ring traps (locally aligned,
+                                    // K saturated, yet global r≈0). R-scaling keeps it out of the way
+                                    // during a real perturbation (R drops → field backs off).
+  const SEN_THRESH   = 0.04;        // |dK/dt| below this counts as "stable"
+  const SEN_WINDOW   = 5.5;         // sim-seconds of stability before senescent decay engages
+  const SEN_DECAY    = 0.18;        // senescent decay rate toward K_FLOOR
+  const RESYNC_TOL   = 0.28;        // |Δθ| considered resynced
+  const RESYNC_DELAY = 0.55;        // sim-seconds before checking resync
+  const VERDICT_TIME = 9.0;         // sim-seconds before forcing verdict
+  const VERDICT_R    = 0.94;        // order param threshold for "consensus locked"
+  const COLLAPSE_R   = 0.55;        // order param below which we call it collapse
+
+  const TOPO_DESC = {
+    full:   'All nodes coupled — fast sync, uniform resilience',
+    ring:   'Nearest-neighbour only — damage propagates locally',
+    sparse: 'Half-mean-degree — the Hebbian budget constraint',
+    hub:    'One node is the system’s single point of failure',
+    island: 'Bridge nodes determine cross-cluster sync',
+  };
+
+  const COL = {
+    bgInner:   '#15151f',
+    gold:      '#d4af37',
+    nodeFace:  '#15151f',
+    nodeIdle:  '#7a7a8a',
+    nodeHand:  '#e8e8f0',
+    blue:      '#4a9eff',
+    orange:    '#ff8a3d',
+    red:       '#ff4d4d',
+    green:     '#4ade80',
+  };
+
+  // ────────────────────────────────────────────────────────────────────────
+  //  STATE
+  // ────────────────────────────────────────────────────────────────────────
+  const osc        = [];        // oscillator array
+  const K          = [];        // NxN symmetric coupling matrix
+  const ALLOWED    = [];        // NxN boolean — which pairs may couple (topology mask)
+  const stableTime = [];        // NxN — sim-seconds each pair has been stable (for senescence)
+  let nodeRoles    = [];        // per-node 'hub' | 'bridge' | null (for labels + special layout)
+  let nodeXY       = [];        // per-node {x, y} — topology-dependent canvas position
+  let bridgePairs  = [];        // [[i,j], ...] — pairs that should seed at K_BRIDGE_INIT (island chain)
+  let topology     = 'island';  // 'full' | 'ring' | 'sparse' | 'hub' | 'island'
+  let speedMult    = 1.0;       // simulation speed multiplier
+  let senescence   = false;     // second-order Hebbian decay on stable pairs
+  let learning     = true;      // when false, K freezes; phases continue
+  let simTime      = 0;
+  let paused       = false;
+  let scenario     = null;      // active perturbation scenario, or null
+  let freeVerdict  = true;      // show the live consensus verdict when no scenario is active
+  let breached     = false;     // true once a knock exceeds the network's healing capacity (> N/2 nodes):
+                                // the coupling floor and global field switch OFF so antiphase splits
+                                // decay to zero and freeze. This is the "knock too many at once — it
+                                // forgets" beat. A knock within capacity leaves the healers on (remembers).
+
+  // ────────────────────────────────────────────────────────────────────────
+  //  DOM
+  // ────────────────────────────────────────────────────────────────────────
+  const canvas = document.getElementById('c');
+  const ctx    = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const CX = W / 2, CY = H / 2;
+  const RING_R = 280;
+  const NODE_R = 15;
+
+  const $sync          = document.getElementById('sync');
+  const $meanK         = document.getElementById('meanK');
+  const $time          = document.getElementById('time');
+  const $ageFill       = document.getElementById('ageFill');
+  const $ageLabel      = document.getElementById('ageLabel');
+  const $verdict       = document.getElementById('verdict');
+  const $perturbN      = document.getElementById('perturbN');
+  const $perturbNValue = document.getElementById('perturbNValue');
+  const $perturbBtn    = document.getElementById('perturbBtn');
+  const $resetBtn      = document.getElementById('resetBtn');
+  const $pauseBtn      = document.getElementById('pauseBtn');
+  const $topoBtns      = document.querySelectorAll('button.seg[data-topo]');
+  const $speedBtns     = document.querySelectorAll('button.seg[data-speed]');
+  const $topoDesc      = document.getElementById('topoDesc');
+  const $nodeN         = document.getElementById('nodeN');
+  const $nodeNValue    = document.getElementById('nodeNValue');
+  const $senBtn        = document.getElementById('senBtn');
+  const $learnBtn      = document.getElementById('learnBtn');
+  const $ageTitle      = document.getElementById('ageTitle');
+
+  // High-DPI handling
+  (function setupHiDPI () {
+    const dpr = window.devicePixelRatio || 1;
+    if (dpr === 1) return;
+    canvas.style.width  = W + 'px';
+    canvas.style.height = H + 'px';
+    canvas.width  = W * dpr;
+    canvas.height = H * dpr;
+    ctx.scale(dpr, dpr);
+  })();
+
+  // ────────────────────────────────────────────────────────────────────────
+  //  MATH HELPERS
+  // ────────────────────────────────────────────────────────────────────────
+  const TAU = Math.PI * 2;
+  const wrap = a => { let x = a % TAU; if (x < 0) x += TAU; return x; };
+  const angleDiff = (a, b) => { let d = wrap(a - b); if (d > Math.PI) d -= TAU; return d; };
+  const clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
+
+  function shuffleInPlace (arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = (Math.random() * (i + 1)) | 0;
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function orderParameter () {
+    let cx = 0, cy = 0;
+    for (let i = 0; i < N; i++) {
+      cx += Math.cos(osc[i].theta);
+      cy += Math.sin(osc[i].theta);
+    }
+    return { r: Math.sqrt(cx * cx + cy * cy) / N, phase: Math.atan2(cy, cx) };
+  }
+
+  function meanCoupling () {
+    // Average only over allowed pairs so HUD tiers stay meaningful under
+    // sparse topologies (otherwise the zero-pinned disallowed pairs swamp the mean).
+    let s = 0, c = 0;
+    for (let i = 0; i < N; i++)
+      for (let j = i + 1; j < N; j++) {
+        if (!ALLOWED[i][j]) continue;
+        s += K[i][j]; c++;
+      }
+    return c === 0 ? 0 : s / c;
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
+  //  SIMULATION
+  // ────────────────────────────────────────────────────────────────────────
+  // Cluster sizes for island chain — N split as evenly as possible across
+  // N_ISLAND_CLUSTERS clusters. Remainder is distributed to the first few
+  // clusters so size differences are at most 1.
+  function islandClusterSizes () {
+    const K    = N_ISLAND_CLUSTERS;
+    const base = Math.floor(N / K);
+    const rem  = N % K;
+    return Array.from({ length: K }, (_, i) => base + (i < rem ? 1 : 0));
+  }
+
+  function buildTopologyMask () {
+    ALLOWED.length = 0;
+    for (let i = 0; i < N; i++) ALLOWED.push(new Array(N).fill(false));
+    nodeRoles   = new Array(N).fill(null);
+    nodeXY      = new Array(N);
+    bridgePairs = [];
+
+    // Default ring layout — overridden below for hub/island
+    const ringLayout = () => {
+      for (let i = 0; i < N; i++) {
+        const a = (i / N) * TAU - Math.PI / 2;
+        nodeXY[i] = { x: CX + Math.cos(a) * RING_R, y: CY + Math.sin(a) * RING_R };
+      }
+    };
+
+    if (topology === 'full') {
+      ringLayout();
+      for (let i = 0; i < N; i++)
+        for (let j = 0; j < N; j++)
+          if (i !== j) ALLOWED[i][j] = true;
+    } else if (topology === 'ring') {
+      ringLayout();
+      // Each node couples only to its 2 nearest ring neighbours
+      for (let i = 0; i < N; i++) {
+        const left  = (i - 1 + N) % N;
+        const right = (i + 1) % N;
+        ALLOWED[i][left]  = true; ALLOWED[left][i]  = true;
+        ALLOWED[i][right] = true; ALLOWED[right][i] = true;
+      }
+    } else if (topology === 'sparse') {
+      ringLayout();
+      // Symmetric Erdős–Rényi mask with edge probability tuned so
+      // mean degree ≈ N/2 (half the fully-connected mean degree).
+      const p = N / (2 * (N - 1));
+      for (let i = 0; i < N; i++) {
+        for (let j = i + 1; j < N; j++) {
+          if (Math.random() < p) { ALLOWED[i][j] = true; ALLOWED[j][i] = true; }
+        }
+      }
+    } else if (topology === 'hub') {
+      // Node 0 is the hub at canvas centre; nodes 1..N-1 on the ring.
+      nodeXY[0] = { x: CX, y: CY };
+      nodeRoles[0] = 'hub';
+      const M = N - 1;
+      for (let i = 1; i < N; i++) {
+        const a = ((i - 1) / M) * TAU - Math.PI / 2;
+        nodeXY[i] = { x: CX + Math.cos(a) * RING_R, y: CY + Math.sin(a) * RING_R };
+        ALLOWED[0][i] = true; ALLOWED[i][0] = true;
+      }
+    } else if (topology === 'island') {
+      // Amoeba layout — N_ISLAND_CLUSTERS clusters arranged roughly hexagonally
+      // around the canvas, with deterministic radial + angular jitter so the
+      // outline reads organic rather than geometric. Bridges form a closed
+      // ring (cluster k ↔ k+1 mod K), giving the chain a blobby loop topology
+      // where consensus has to walk around the amoeba's perimeter.
+      const K          = N_ISLAND_CLUSTERS;
+      const sizes      = islandClusterSizes();
+      const clusterR   = RING_R * 0.88;     // pulled in slightly to leave headroom for amoeba jitter
+      const maxSize    = Math.max(...sizes, 1);
+      const innerR     = Math.max(26, Math.min(48, 200 / maxSize));   // wider intra-cluster spacing than before
+      const bridges    = [];
+      let   nodeIdx    = 0;
+      for (let c = 0; c < K; c++) {
+        const size         = sizes[c];
+        const baseAng      = (c / K) * TAU - Math.PI / 2;
+        // Deterministic per-cluster perturbations (sin/cos of cluster index)
+        const radialFactor = 1 + 0.14 * Math.sin(c * 2.3 + 0.7);
+        const angleOffset  = 0.18 * Math.cos(c * 1.9 + 1.4);
+        const cAng         = baseAng + angleOffset;
+        const cR           = clusterR * radialFactor;
+        const ccx          = CX + Math.cos(cAng) * cR;
+        const ccy          = CY + Math.sin(cAng) * cR;
+        const clusterStart = nodeIdx;
+        const bridgeLocal  = Math.floor(size / 2);
+        const bridgeIdx    = clusterStart + bridgeLocal;
+        bridges.push(bridgeIdx);
+        nodeRoles[bridgeIdx] = 'bridge';
+        if (size === 1) {
+          // Single-node "cluster" — just place the node at the cluster centre
+          nodeXY[nodeIdx++] = { x: ccx, y: ccy };
+        } else {
+          // Mini-ring around (ccx, ccy); bridge faces the canvas centre
+          for (let k = 0; k < size; k++) {
+            const localOffset = k - bridgeLocal;
+            const a = cAng + Math.PI + (localOffset / size) * TAU;
+            nodeXY[nodeIdx++] = { x: ccx + Math.cos(a) * innerR, y: ccy + Math.sin(a) * innerR };
+          }
+        }
+        // Fully connected within the cluster
+        for (let i = clusterStart; i < clusterStart + size; i++)
+          for (let j = i + 1; j < clusterStart + size; j++) {
+            ALLOWED[i][j] = true; ALLOWED[j][i] = true;
+          }
+      }
+      // Closed bridge ring — each bridge connects to the next, last wraps to first.
+      // Tracked in bridgePairs so init() can seed them at K_BRIDGE_INIT (above the
+      // draw threshold) so the full chain renders immediately instead of waiting
+      // for Hebbian growth to lift half-decayed antiphase pairs into view.
+      for (let c = 0; c < bridges.length; c++) {
+        const a = bridges[c], b = bridges[(c + 1) % bridges.length];
+        ALLOWED[a][b] = true; ALLOWED[b][a] = true;
+        bridgePairs.push([a, b]);
+      }
+    }
+  }
+
+  function init () {
+    osc.length        = 0;
+    K.length          = 0;
+    stableTime.length = 0;
+    simTime           = 0;
+    scenario          = null;
+    breached          = false;
+    freeVerdict       = true;
+    renderVerdict(null);
+    buildTopologyMask();
+    for (let i = 0; i < N; i++) {
+      osc.push({
+        theta:        Math.random() * TAU,
+        omega:        OMEGA_MEAN + (Math.random() - 0.5) * OMEGA_SPREAD,
+        cluster:      null,         // null | 'blue' | 'orange'
+        flash:        null,         // null | 'red' | 'green'
+        flashUntil:   0,
+        perturbedAt:  -Infinity,
+      });
+    }
+    for (let i = 0; i < N; i++) {
+      const row = new Array(N).fill(0);
+      for (let j = 0; j < N; j++) if (ALLOWED[i][j]) row[j] = K_INIT;
+      K.push(row);
+      stableTime.push(new Array(N).fill(0));
+    }
+    // Bridge pairs (island chain) get a higher initial K so every chain link
+    // is visible from t=0 instead of half-fading away during Hebbian sort-out.
+    for (const [a, b] of bridgePairs) {
+      K[a][b] = K_BRIDGE_INIT; K[b][a] = K_BRIDGE_INIT;
+    }
+    // Keep perturb-count slider bounded by current N
+    const maxPerturb = Math.max(2, N - (N % 2));
+    $perturbN.max = String(maxPerturb);
+    if (parseInt($perturbN.value, 10) > maxPerturb) {
+      $perturbN.value = String(maxPerturb);
+      $perturbNValue.textContent = $perturbN.value;
+    }
+    $topoDesc.textContent = TOPO_DESC[topology] || '';
+  }
+
+  function step () {
+    const dt = DT * speedMult;
+
+    // Kuramoto: dθ/dt = ω_i + (1/deg_i) Σ_j K_ij sin(θ_j − θ_i)
+    // Normalise by each node's ACTUAL degree, not global N. Dividing sparse
+    // topologies (island/ring, ~2-4 neighbours) by N=24 diluted coupling 6-12x
+    // and capped global coherence near 0.88. Degree normalisation gives every
+    // node full-strength pull to its real neighbours, so clusters lock across
+    // the bridges and the chain reaches consensus.
+    // Global mean-field: mean phase + coherence R over the current phases. The
+    // κ0·R·sin(meanPhase − θ_i) term (added below) is a weak all-to-all pull that
+    // dissolves winding/twisted states the cluster-ring traps. Kept as a WEAK
+    // residual once the network is over-capacity "breached" (was fully off): the
+    // forget-split still decays to nothing visually, but the residual pull lets it
+    // crawl back to consensus over time so "breached" can clear and the coupling
+    // (with its edges) regrows — the RELEARNED path. Without it, breached was a
+    // dead trap: floor=0 AND field=0 meant r could never climb, so the recovery
+    // branch was unreachable and the edges never repainted (fix 2026-07-06).
+    let mx = 0, my = 0;
+    for (let i = 0; i < N; i++) { mx += Math.cos(osc[i].theta); my += Math.sin(osc[i].theta); }
+    const meanPhase = Math.atan2(my, mx);
+    const R         = Math.sqrt(mx * mx + my * my) / N;
+    const kappa     = breached ? KAPPA0 * 0.12 : KAPPA0;
+
+    const dtheta = new Array(N);
+    for (let i = 0; i < N; i++) {
+      let sum = 0, deg = 0;
+      const ti = osc[i].theta;
+      for (let j = 0; j < N; j++) {
+        if (i === j) continue;
+        if (!ALLOWED[i][j]) continue;
+        sum += K[i][j] * Math.sin(osc[j].theta - ti);
+        deg++;
+      }
+      dtheta[i] = osc[i].omega + (deg > 0 ? sum / deg : 0)
+                + kappa * R * Math.sin(meanPhase - ti);
+    }
+    for (let i = 0; i < N; i++) osc[i].theta = wrap(osc[i].theta + dtheta[i] * dt + (Math.random() - 0.5) * 0.020);
+
+    // Hebbian + senescence — entire block skipped when learning is OFF (K freezes)
+    if (learning) {
+      // Hebbian: dK_ij/dt = ε cos(θ_i − θ_j) − γ K_ij    (symmetric)
+      // Only allowed pairs may grow; disallowed pairs are pinned to 0 by topology.
+      // Floor is K_INIT normally (edges never fully decay → splits self-heal), but
+      // drops to 0 once the network is over-capacity "breached", letting antiphase
+      // edges decay to nothing so a big knock freezes into a permanent forget.
+      const floor = breached ? 0 : K_INIT;
+      for (let i = 0; i < N; i++) {
+        for (let j = i + 1; j < N; j++) {
+          if (!ALLOWED[i][j]) continue;
+          const align  = Math.cos(osc[i].theta - osc[j].theta);
+          const dK     = HEBB_RATE * align - HEBB_DECAY * K[i][j];
+          const kPrev  = K[i][j];
+          // Floor: an allowed edge never fully decays (self-heal) unless breached.
+          let   v      = clamp(kPrev + dK * dt, floor, K_MAX);
+
+          // Senescence: pairs whose post-clamp K has barely moved for
+          // SEN_WINDOW seconds slowly drift back toward K_FLOOR. Pairs that
+          // are actively changing (delta-per-second > SEN_THRESH) reset their
+          // stable-age timer and stay protected. A pair pinned at K_MAX has
+          // delta ≈ 0 → counts as stable → senesces. That's the intended
+          // "over-fit couplings can't adapt" failure mode.
+          if (senescence) {
+            const rate = Math.abs(v - kPrev) / Math.max(dt, 1e-6);
+            if (rate < SEN_THRESH) stableTime[i][j] += dt;
+            else                    stableTime[i][j]  = 0;
+            if (stableTime[i][j] > SEN_WINDOW) {
+              v -= SEN_DECAY * dt * (v - K_FLOOR);
+              v  = clamp(v, 0, K_MAX);
+            }
+          } else if (stableTime[i][j] !== 0) {
+            stableTime[i][j] = 0;
+          }
+          K[i][j] = v; K[j][i] = v;
+        }
+      }
+    }
+
+    simTime += dt;
+
+    // Resync detection: node rejoins consensus
+    const op   = orderParameter();
+    const now  = performance.now();
+    for (let i = 0; i < N; i++) {
+      const o = osc[i];
+      if (o.cluster && simTime - o.perturbedAt > RESYNC_DELAY) {
+        if (Math.abs(angleDiff(o.theta, op.phase)) < RESYNC_TOL && op.r > 0.82) {
+          o.cluster    = null;
+          o.flash      = 'green';
+          o.flashUntil = now + 520;
+        }
+      }
+    }
+
+    // Verdict resolution — LIVE and self-correcting. A blue/orange win is
+    // terminal (one basin absorbed the other). A FORGOT is NOT terminal: a knock
+    // near the capacity limit can crawl back to consensus over the following
+    // minutes, so we keep watching a collapsed verdict and flip it to RELEARNED
+    // (restoring the healers) if r climbs back above lock. This stops the stale
+    // "memory dissolved" label from sitting on screen while synchrony reads 100%.
+    if (scenario) {
+      const elapsed = simTime - scenario.startSim;
+      if (!scenario.resolved) {
+        const lock      = op.r > VERDICT_R;
+        const collapsed = elapsed > VERDICT_TIME * 0.6 && op.r < COLLAPSE_R;
+        if (lock || elapsed > VERDICT_TIME) {
+          scenario.resolved = true;
+          if (op.r < COLLAPSE_R) {
+            scenario.outcome = 'collapsed';
+            renderVerdict({ type: 'collapsed' });   // keep scenario alive to watch for recovery
+          } else {
+            const dB = Math.abs(angleDiff(op.phase, scenario.bluePhase));
+            const dO = Math.abs(angleDiff(op.phase, scenario.orangePhase));
+            renderVerdict({
+              type:   dB < dO ? 'blue' : 'orange',
+              blueN:  scenario.blueIdx.length,
+              oraN:   scenario.orangeIdx.length,
+            });
+            scenario = null;                          // a winner is terminal
+          }
+        } else if (collapsed) {
+          renderVerdict({ type: 'resolving', blueN: scenario.blueIdx.length, oraN: scenario.orangeIdx.length, hint: 'fragmenting…' });
+        }
+      } else if (scenario.outcome === 'collapsed' && op.r > VERDICT_R) {
+        // A forgotten network clawed back to consensus — it relearned. Restore
+        // the healers (the wipe was survivable) and flip the verdict honestly.
+        breached = false;
+        renderVerdict({ type: 'recovered' });
+        scenario = null;
+      }
+    } else if (freeVerdict) {
+      // Free-running (no perturbation): show the live consensus verdict so the
+      // panel reads from boot, not only after a Perturb.
+      renderVerdict(op.r >= VERDICT_R ? { type: 'locked', r: op.r } : { type: 'syncing', r: op.r });
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
+  //  PERTURBATION
+  // ────────────────────────────────────────────────────────────────────────
+  function perturb (n) {
+    n = clamp(n | 0, 2, N);
+
+    // Pick n indices, split in half
+    const idx = shuffleInPlace([...Array(N).keys()]);
+    const picked = idx.slice(0, n);
+    const half   = Math.floor(n / 2);
+    const blueIdx   = picked.slice(0, half);
+    const orangeIdx = picked.slice(half);
+
+    // Healing capacity = half the network. A knock within capacity leaves the
+    // floor + global field ON, so the split self-heals — the network REMEMBERS.
+    // A knock that exceeds capacity "breaches" it: we wipe the learned coupling on
+    // the struck nodes and switch the healers OFF (floor→0, field→0), so the
+    // antiphase split decays to zero and freezes — the network FORGETS. Measured
+    // headless: n≤N/2 heals ~100%, n>N/2+2 forgets ~95%+ (r collapses 0.45→0.12).
+    breached = n > Math.floor(N / 2);
+    if (breached) {
+      for (const i of picked)
+        for (let j = 0; j < N; j++)
+          if (ALLOWED[i][j]) { K[i][j] = 0; K[j][i] = 0; }
+    }
+
+    // Two clusters π apart — centred symmetrically around current consensus
+    const op = orderParameter();
+    const centre = op.r > 0.3 ? op.phase : Math.random() * TAU;
+    const bluePhase   = wrap(centre + Math.PI / 2);
+    const orangePhase = wrap(centre - Math.PI / 2);
+
+    const now = performance.now();
+    blueIdx.forEach(i => {
+      osc[i].theta       = wrap(bluePhase + (Math.random() - 0.5) * 0.18);
+      osc[i].cluster     = 'blue';
+      osc[i].flash       = 'red';
+      osc[i].flashUntil  = now + 450;
+      osc[i].perturbedAt = simTime;
+    });
+    orangeIdx.forEach(i => {
+      osc[i].theta       = wrap(orangePhase + (Math.random() - 0.5) * 0.18);
+      osc[i].cluster     = 'orange';
+      osc[i].flash       = 'red';
+      osc[i].flashUntil  = now + 450;
+      osc[i].perturbedAt = simTime;
+    });
+
+    freeVerdict = false;
+    scenario = {
+      blueIdx, orangeIdx,
+      bluePhase, orangePhase,
+      startSim: simTime,
+      resolved: false,
+    };
+    renderVerdict({ type: 'resolving', blueN: blueIdx.length, oraN: orangeIdx.length });
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
+  //  RENDER
+  // ────────────────────────────────────────────────────────────────────────
+  function rgba (hex, a) {
+    const h = hex.replace('#', '');
+    const r = parseInt(h.slice(0, 2), 16);
+    const g = parseInt(h.slice(2, 4), 16);
+    const b = parseInt(h.slice(4, 6), 16);
+    return `rgba(${r},${g},${b},${a})`;
+  }
+
+  function draw () {
+    ctx.clearRect(0, 0, W, H);
+
+    // Subtle ring guide
+    ctx.beginPath();
+    ctx.arc(CX, CY, RING_R, 0, TAU);
+    ctx.strokeStyle = 'rgba(255,255,255,0.035)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Inner faint reference ring
+    ctx.beginPath();
+    ctx.arc(CX, CY, RING_R - 60, 0, TAU);
+    ctx.setLineDash([2, 6]);
+    ctx.strokeStyle = 'rgba(255,255,255,0.025)';
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Cache node positions (topology-dependent, computed in buildTopologyMask)
+    const pos = nodeXY;
+
+    // Coupling lines — gold, alpha & width by strength
+    for (let i = 0; i < N; i++) {
+      for (let j = i + 1; j < N; j++) {
+        const s = K[i][j] / K_MAX;
+        if (s < 0.04) continue;
+        ctx.beginPath();
+        ctx.moveTo(pos[i].x, pos[i].y);
+        ctx.lineTo(pos[j].x, pos[j].y);
+        ctx.strokeStyle = rgba(COL.gold, Math.min(0.55, s * 0.65));
+        ctx.lineWidth   = 0.5 + s * 2.4;
+        ctx.stroke();
+      }
+    }
+
+    // Order parameter arrow at centre
+    const op = orderParameter();
+    if (op.r > 0.05) {
+      const len = op.r * 60;
+      const ex = CX + Math.cos(op.phase) * len;
+      const ey = CY + Math.sin(op.phase) * len;
+      ctx.beginPath();
+      ctx.moveTo(CX, CY);
+      ctx.lineTo(ex, ey);
+      ctx.strokeStyle = rgba(COL.gold, 0.35 + op.r * 0.5);
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(CX, CY, 3.5, 0, TAU);
+      ctx.fillStyle = rgba(COL.gold, 0.85);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(ex, ey, 3, 0, TAU);
+      ctx.fillStyle = rgba(COL.gold, 0.9);
+      ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.arc(CX, CY, 3, 0, TAU);
+      ctx.fillStyle = rgba(COL.gold, 0.3);
+      ctx.fill();
+    }
+
+    // Nodes
+    const now = performance.now();
+    for (let i = 0; i < N; i++) {
+      const o = osc[i];
+      const p = pos[i];
+
+      // Resolve current colour & glow
+      let baseCol = COL.nodeIdle;
+      let glow = 0;
+      let glowCol = null;
+
+      if (o.flash && now < o.flashUntil) {
+        const dur = o.flash === 'red' ? 450 : 520;
+        const t   = (o.flashUntil - now) / dur;        // 1 → 0
+        glow      = t;
+        glowCol   = o.flash === 'red' ? COL.red : COL.green;
+        baseCol   = glowCol;
+      } else if (o.flash) {
+        o.flash = null;
+      }
+
+      if (!glowCol) {
+        if (o.cluster === 'blue')   baseCol = COL.blue;
+        else if (o.cluster === 'orange') baseCol = COL.orange;
+      }
+
+      // Outer glow
+      if (glow > 0) {
+        const r1 = NODE_R + 14 * glow;
+        const grd = ctx.createRadialGradient(p.x, p.y, NODE_R * 0.4, p.x, p.y, r1);
+        grd.addColorStop(0, rgba(glowCol, 0.45 * glow));
+        grd.addColorStop(1, rgba(glowCol, 0));
+        ctx.fillStyle = grd;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r1, 0, TAU);
+        ctx.fill();
+      } else if (o.cluster) {
+        // soft cluster aura
+        const r1 = NODE_R + 7;
+        const grd = ctx.createRadialGradient(p.x, p.y, NODE_R * 0.5, p.x, p.y, r1);
+        grd.addColorStop(0, rgba(baseCol, 0.22));
+        grd.addColorStop(1, rgba(baseCol, 0));
+        ctx.fillStyle = grd;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r1, 0, TAU);
+        ctx.fill();
+      }
+
+      // Node face
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, NODE_R, 0, TAU);
+      ctx.fillStyle = COL.nodeFace;
+      ctx.fill();
+      ctx.lineWidth = 1.6;
+      ctx.strokeStyle = baseCol;
+      ctx.stroke();
+
+      // Hour markers — tiny dots at cardinal points
+      for (let m = 0; m < 4; m++) {
+        const a = m * Math.PI / 2;
+        const mx = p.x + Math.cos(a) * (NODE_R - 3.5);
+        const my = p.y + Math.sin(a) * (NODE_R - 3.5);
+        ctx.beginPath();
+        ctx.arc(mx, my, 0.6, 0, TAU);
+        ctx.fillStyle = rgba(baseCol, 0.4);
+        ctx.fill();
+      }
+
+      // Clock hand
+      const handLen = NODE_R - 3.5;
+      const hx = p.x + Math.cos(o.theta) * handLen;
+      const hy = p.y + Math.sin(o.theta) * handLen;
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(hx, hy);
+      ctx.strokeStyle = baseCol === COL.nodeIdle ? COL.nodeHand : baseCol;
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      // Pivot dot
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 1.8, 0, TAU);
+      ctx.fillStyle = baseCol === COL.nodeIdle ? COL.nodeHand : baseCol;
+      ctx.fill();
+
+      // Role label (HUB / BRIDGE) — small text below the node
+      const role = nodeRoles[i];
+      if (role) {
+        const label = role === 'hub' ? 'HUB' : 'BRIDGE';
+        // Hub sits at canvas centre; bridges sit on cluster mini-rings.
+        // Push the label outward from the canvas centre so it never crosses the node.
+        const dx = p.x - CX, dy = p.y - CY;
+        const len = Math.hypot(dx, dy) || 1;
+        const off = NODE_R + 11;
+        const lx  = p.x + (dx / len) * off;
+        const ly  = role === 'hub' ? p.y + NODE_R + 14 : p.y + (dy / len) * off + 3;
+        ctx.font         = '700 9px ui-monospace, "SF Mono", Menlo, monospace';
+        ctx.textAlign    = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle    = rgba(COL.gold, 0.85);
+        ctx.fillText(label, lx, ly);
+      }
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
+  //  READOUTS / VERDICT
+  // ────────────────────────────────────────────────────────────────────────
+  function updateReadouts () {
+    const op = orderParameter();
+    const mk = meanCoupling();
+    $sync.textContent     = Math.round(op.r * 100) + '%';
+    $meanK.textContent    = mk.toFixed(2);
+    $time.textContent     = simTime.toFixed(1) + 's';
+    $ageTitle.textContent = senescence ? 'Aging' : 'Coupling age';
+
+    const pct = clamp(mk / K_MAX, 0, 1);
+    $ageFill.style.width = (pct * 100) + '%';
+    if (pct < 0.33) {
+      $ageLabel.textContent = 'WEAK';
+      $ageLabel.className   = 'age-label weak';
+    } else if (pct < 0.7) {
+      $ageLabel.textContent = 'MEDIUM';
+      $ageLabel.className   = 'age-label medium';
+    } else {
+      $ageLabel.textContent = 'STRONG';
+      $ageLabel.className   = 'age-label strong';
+    }
+  }
+
+  function renderVerdict (v) {
+    if (!v) { $verdict.innerHTML = ''; return; }
+    if (v.type === 'resolving') {
+      $verdict.innerHTML =
+        `<div class="vlabel">Resolving</div>
+         <div class="vline resolving">${v.blueN} vs ${v.oraN}</div>
+         <div class="sub">${v.hint || 'watching consensus…'}</div>`;
+    } else if (v.type === 'blue') {
+      $verdict.innerHTML =
+        `<div class="vlabel">Verdict</div>
+         <div class="vline blue">BLUE WINS</div>
+         <div class="sub">${v.blueN}-cluster locked the basin</div>`;
+    } else if (v.type === 'orange') {
+      $verdict.innerHTML =
+        `<div class="vlabel">Verdict</div>
+         <div class="vline orange">ORANGE WINS</div>
+         <div class="sub">${v.oraN}-cluster locked the basin</div>`;
+    } else if (v.type === 'collapsed') {
+      $verdict.innerHTML =
+        `<div class="vlabel">Verdict</div>
+         <div class="vline collapsed">NETWORK FORGOT</div>
+         <div class="sub">memory dissolved</div>`;
+    } else if (v.type === 'recovered') {
+      $verdict.innerHTML =
+        `<div class="vlabel">Verdict</div>
+         <div class="vline recovered">RELEARNED</div>
+         <div class="sub">consensus rebuilt from the wreckage</div>`;
+    } else if (v.type === 'syncing') {
+      $verdict.innerHTML =
+        `<div class="vlabel">Consensus</div>
+         <div class="vline resolving">SYNCING ${Math.round(v.r * 100)}%</div>
+         <div class="sub">Hebbian couplings forming</div>`;
+    } else if (v.type === 'locked') {
+      $verdict.innerHTML =
+        `<div class="vlabel">Consensus</div>
+         <div class="vline recovered">CONSENSUS LOCKED</div>
+         <div class="sub">coherence ${Math.round(v.r * 100)}%</div>`;
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
+  //  LOOP
+  // ────────────────────────────────────────────────────────────────────────
+  function frame () {
+    if (!paused) for (let s = 0; s < SUBSTEPS; s++) step();
+    draw();
+    updateReadouts();
+    requestAnimationFrame(frame);
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
+  //  EVENTS
+  // ────────────────────────────────────────────────────────────────────────
+  $perturbN.addEventListener('input', () => $perturbNValue.textContent = $perturbN.value);
+  $perturbBtn.addEventListener('click', () => perturb(parseInt($perturbN.value, 10)));
+  $resetBtn.addEventListener('click', () => init());
+  // Island chain is dense per cluster, so large N becomes visually unreadable.
+  // When switching topology, clamp the NODES slider's max + snap N to a sane
+  // default if the current value is out of range for the new topology.
+  function applyTopologyNodeConstraints () {
+    if (topology === 'island') {
+      const maxIdx = N_OPTIONS.indexOf(N_ISLAND_MAX);
+      $nodeN.max = String(maxIdx);
+      if (N > N_ISLAND_MAX) {
+        N = N_ISLAND_DEFAULT;
+        $nodeN.value = String(N_OPTIONS.indexOf(N_ISLAND_DEFAULT));
+        $nodeNValue.textContent = N;
+      }
+    } else {
+      $nodeN.max = String(N_OPTIONS.length - 1);
+    }
+  }
+
+  $topoBtns.forEach(btn => btn.addEventListener('click', () => {
+    topology = btn.dataset.topo;
+    $topoBtns.forEach(b => b.classList.toggle('active', b === btn));
+    applyTopologyNodeConstraints();
+    init();
+  }));
+  $speedBtns.forEach(btn => btn.addEventListener('click', () => {
+    speedMult = parseFloat(btn.dataset.speed);
+    $speedBtns.forEach(b => b.classList.toggle('active', b === btn));
+  }));
+  $nodeN.addEventListener('input', () => {
+    N = N_OPTIONS[parseInt($nodeN.value, 10)];
+    $nodeNValue.textContent = N;
+    init();
+  });
+  $senBtn.addEventListener('click', () => {
+    senescence = !senescence;
+    $senBtn.classList.toggle('on', senescence);
+    $senBtn.textContent = 'Senescence: ' + (senescence ? 'ON' : 'OFF');
+    // Reset stable-time tracking so flipping the toggle gives a clean window
+    for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) stableTime[i][j] = 0;
+  });
+  $learnBtn.addEventListener('click', () => {
+    learning = !learning;
+    $learnBtn.classList.toggle('on', learning);
+    $learnBtn.textContent = 'Learning: ' + (learning ? 'ON' : 'OFF');
+  });
+  $pauseBtn.addEventListener('click', () => {
+    paused = !paused;
+    $pauseBtn.textContent = paused ? 'Resume' : 'Pause';
+  });
+  window.addEventListener('keydown', e => {
+    if (e.code === 'Space')     { e.preventDefault(); $pauseBtn.click(); }
+    else if (e.key === 'r')     { init(); }
+    else if (e.key === 'p')     { $perturbBtn.click(); }
+  });
+
+  // ────────────────────────────────────────────────────────────────────────
+  //  GO
+  // ────────────────────────────────────────────────────────────────────────
+  init();
+  frame();
+})();
+</script>
+</body>
+</html>

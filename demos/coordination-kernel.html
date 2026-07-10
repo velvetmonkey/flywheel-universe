@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Coordination Kernel — proof-linked consensus demo</title>
+<style>
+  :root {
+    --bg: #07070d; --bg-2: #11111a;
+    --panel: #14141f; --panel-2: #1c1c2a; --line: #23233a;
+    --ink: #e8e8f0; --ink-2: #9090a0; --ink-3: #6a6a78;
+    --gold: #d4af37; --gold-2: #f0c84a;
+    --blue: #4a9eff; --orange: #ff8a3d;
+    --red: #ff4d4d; --green: #4ade80;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background-color: var(--bg);
+    background-image: radial-gradient(1200px 600px at 15% -10%, rgba(212,175,55,0.06), transparent 60%),
+                      radial-gradient(1000px 700px at 90% 110%, rgba(74,158,255,0.05), transparent 60%);
+    color: var(--ink); font-family: var(--sans);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 32px 20px 48px; min-height: 100vh;
+  }
+  header { max-width: 720px; width: 100%; margin-bottom: 18px; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--gold); margin-bottom: 8px;
+  }
+  h1 { font-size: 22px; font-weight: 600; margin-bottom: 6px; color: var(--ink); }
+  .story { font-size: 14px; font-style: italic; color: var(--ink-2); line-height: 1.5; }
+
+  .stage {
+    position: relative; width: 100%; max-width: 720px;
+    border-radius: 16px; overflow: hidden; background: var(--bg-2);
+    box-shadow: 0 0 0 1px var(--line), 0 30px 80px rgba(0,0,0,0.6);
+    margin-bottom: 12px;
+  }
+  canvas { display: block; width: 100%; height: auto; }
+  .hud {
+    position: absolute; font-family: var(--mono); font-size: 11px;
+    color: var(--ink-2); background: rgba(7,7,13,0.72);
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+    letter-spacing: 0.04em; line-height: 1.6;
+  }
+  .hud.tl { top: 12px; left: 12px; }
+  .hud.tr { top: 12px; right: 12px; text-align: right; }
+  .hud.bl { bottom: 12px; left: 12px; }
+  .hud b { color: var(--ink); font-weight: 600; }
+  .hud .big { font-size: 15px; color: var(--gold-2); }
+
+  .chartwrap {
+    width: 100%; max-width: 720px; border-radius: 12px; overflow: hidden;
+    background: var(--bg-2); box-shadow: 0 0 0 1px var(--line);
+    margin-bottom: 6px;
+  }
+  .caption {
+    max-width: 720px; width: 100%; font-family: var(--mono); font-size: 11px;
+    color: var(--ink-3); letter-spacing: 0.03em; margin-bottom: 16px; line-height: 1.6;
+  }
+  .caption code { color: var(--ink-2); }
+
+  .verdict {
+    max-width: 720px; width: 100%; border-radius: 10px; padding: 12px 16px;
+    font-size: 14px; line-height: 1.55; margin-bottom: 14px;
+    border: 1px solid var(--line); background: var(--panel);
+  }
+  .verdict.ok { border-color: rgba(74,222,128,0.5); background: rgba(74,222,128,0.07); }
+  .verdict.bad { border-color: rgba(255,77,77,0.5); background: rgba(255,77,77,0.07); }
+  .verdict .vh { font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em;
+    text-transform: uppercase; margin-bottom: 4px; }
+  .verdict.ok .vh { color: var(--green); }
+  .verdict.bad .vh { color: var(--red); }
+
+  .panel {
+    max-width: 720px; width: 100%; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px; margin-bottom: 14px;
+  }
+  .panel h2 {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--ink-2); margin-bottom: 10px;
+  }
+  .precond { display: flex; flex-direction: column; gap: 7px; }
+  .prow {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.5;
+  }
+  .prow .hyp { color: var(--ink); }
+  .prow .val { color: var(--ink-3); font-size: 11.5px; white-space: nowrap; }
+  .pill {
+    display: inline-block; min-width: 52px; text-align: center;
+    font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase;
+    border-radius: 999px; padding: 2px 10px; margin-left: 10px;
+  }
+  .pill.ok { color: var(--green); border: 1px solid rgba(74,222,128,0.55); background: rgba(74,222,128,0.08); }
+  .pill.bad { color: var(--red); border: 1px solid rgba(255,77,77,0.55); background: rgba(255,77,77,0.08); }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .cgroup { display: flex; align-items: center; gap: 6px; }
+  .clabel { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--ink-3); }
+  button {
+    font-family: var(--mono); font-size: 12px; color: var(--ink);
+    background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: 6px; padding: 7px 13px; cursor: pointer;
+  }
+  button:hover { border-color: #3a3a52; }
+  button.seg.active { border-color: var(--gold); color: var(--gold-2); }
+  button.primary { border-color: rgba(212,175,55,0.65); color: var(--gold-2); }
+  button.danger { border-color: rgba(255,77,77,0.5); color: #ff9c9c; }
+  button.danger:hover { border-color: var(--red); }
+  button.safe { border-color: rgba(74,222,128,0.5); color: #9df0bb; }
+  input[type="number"] {
+    font-family: var(--mono); font-size: 12px; width: 76px;
+    background: var(--panel-2); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px;
+  }
+  input[type="range"] { accent-color: var(--gold); width: 130px; }
+
+  .modenote { display: none; }
+  .modenote.show { display: block; }
+  .modenote p { font-size: 13.5px; color: var(--ink-2); line-height: 1.6; }
+  .modenote p b { color: var(--ink); }
+
+  .cert { border-color: rgba(212,175,55,0.35); }
+  .cert pre {
+    font-family: var(--mono); font-size: 11px; line-height: 1.55;
+    color: var(--ink-2); background: var(--bg-2); border: 1px solid var(--line);
+    border-radius: 8px; padding: 12px; overflow-x: auto; margin: 10px 0;
+  }
+  .cert .meta { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); line-height: 1.8; }
+  .cert .meta b { color: var(--gold-2); font-weight: 600; }
+  .cert a { color: var(--blue); text-decoration: none; }
+  .cert a:hover { text-decoration: underline; }
+  .cert .frame { font-size: 13.5px; color: var(--ink); margin-top: 8px; line-height: 1.55; }
+
+  .scope { border-color: rgba(74,158,255,0.3); }
+  .scope h3 { font-size: 13px; font-weight: 600; margin: 8px 0 4px; }
+  .scope h3.yes { color: var(--green); }
+  .scope h3.no { color: var(--orange); }
+  .scope p { font-size: 13px; color: var(--ink-2); line-height: 1.6; }
+  .scope code { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); }
+
+  footer { max-width: 720px; width: 100%; font-family: var(--mono); font-size: 10.5px;
+    color: var(--ink-3); letter-spacing: 0.04em; line-height: 1.7; }
+  @media (max-width: 620px) { .hud.tr { display: none; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">flywheel-universe · line b · proof-linked demo</div>
+  <h1>The Coordination Kernel</h1>
+  <p class="story">Watch a fleet of agents provably reach consensus — and what happens
+  the instant you break the guarantee&rsquo;s assumptions.</p>
+</header>
+
+<div class="stage">
+  <canvas id="c" width="720" height="500"></canvas>
+  <div class="hud tl">
+    <div>consensus &nbsp;<b class="big" id="hudR">0.000</b></div>
+    <div>time &nbsp;<b id="hudT">0.0</b></div>
+  </div>
+  <div class="hud tr" id="hudMode">HYPOTHESES HOLD</div>
+  <div class="hud bl">
+    <div style="margin-bottom:4px">coupling W</div>
+    <canvas id="wgrid" width="96" height="96" style="width:96px;height:96px;border-radius:4px"></canvas>
+  </div>
+</div>
+
+<div class="chartwrap"><canvas id="chart" width="720" height="150"></canvas></div>
+<p class="caption">‖R‖ is the exact quantity the theorem bounds:
+<code>‖kuramotoR N (θ t)‖ → 1</code>. Dynamics on this page:
+<code>dθᵢ/dt = K·Σⱼ Wᵢⱼ·sin(θⱼ − θᵢ)</code> — the theorem&rsquo;s vector field with no
+hidden terms (no frequency detuning, no noise, no normalisation, no mean-field pull).
+Classical RK4, Δt = 0.02, seeded and deterministic.</p>
+
+<div class="verdict ok" id="verdict">
+  <div class="vh" id="verdictHead">theorem applies</div>
+  <div id="verdictBody"></div>
+</div>
+
+<div class="panel">
+  <h2>Preconditions — the theorem&rsquo;s actual hypotheses, checked live</h2>
+  <div class="precond" id="precond"></div>
+</div>
+
+<div class="panel">
+  <h2>Controls</h2>
+  <div class="controls">
+    <button id="pauseBtn" class="primary">Pause</button>
+    <button id="resetBtn">Reset</button>
+    <div class="cgroup"><span class="clabel">seed</span><input type="number" id="seed" value="42" step="1"></div>
+    <div class="cgroup"><span class="clabel">N</span>
+      <button class="seg" data-n="8">8</button>
+      <button class="seg" data-n="12">12</button>
+      <button class="seg active" data-n="16">16</button>
+      <button class="seg" data-n="24">24</button>
+    </div>
+    <div class="cgroup"><span class="clabel">K</span>
+      <input type="range" id="kslider" min="0.2" max="3" step="0.1" value="1">
+      <span class="clabel" id="kval">1.0</span>
+    </div>
+  </div>
+  <div class="controls" style="margin-top:10px">
+    <span class="clabel">break a hypothesis:</span>
+    <button id="cutBtn" class="danger">Cut the floor</button>
+    <button id="splayBtn" class="danger">Start outside the semicircle</button>
+    <button id="restoreBtn" class="safe">Restore hypotheses</button>
+  </div>
+</div>
+
+<div class="panel modenote" id="noteCut">
+  <h2>Hypothesis broken: coupling floor</h2>
+  <p>All coupling between the two halves of the fleet is now zero, so
+  <b>min<sub>i≠j</sub> W<sub>ij</sub> = 0</b>: no positive floor exists and the theorem is
+  <b>silent</b>. This coupling — two disconnected islands — is one it permits where global
+  consensus genuinely fails: each island agrees internally, the fleet never does, and ‖R‖
+  plateaus below 1. Note the claim carefully: cutting the floor does not always break
+  synchrony; it removes the guarantee. This is a witness that the guarantee is gone.</p>
+</div>
+
+<div class="panel modenote" id="noteSplay">
+  <h2>Hypothesis broken: open semicircle</h2>
+  <p>The fleet now starts as two antipodal clusters, so the initial phase diameter is
+  exactly π — <b>not inside an open semicircle</b>. In exact arithmetic this configuration
+  is a stationary solution of the very same dynamics (every phase difference is 0 or π, so
+  every coupling term vanishes): it would never move toward consensus. Watch the numerics
+  closely: ‖R‖ sits at 0 on this knife-edge until floating-point crumbs (~10⁻¹⁶) tip the
+  integrator off the unstable equilibrium — after which this particular fleet happens to
+  re-synchronise. The theorem never promised that. Outside the semicircle the guarantee is
+  gone and the outcome is luck, not law: the hypothesis is sufficient, not necessary —
+  violating it doesn&rsquo;t force failure, it removes the guarantee. This is a witness
+  that the guarantee is gone.</p>
+</div>
+
+<div class="panel cert">
+  <h2>The certificate — where the guarantee comes from</h2>
+  <div class="meta">
+    theorem <b>floor_coupling_convergence_to_synchrony</b><br>
+    library <a href="https://github.com/velvetmonkey/kuramoto-lean">github.com/velvetmonkey/kuramoto-lean</a>
+    &nbsp;·&nbsp; machine-checked in Lean 4 / Mathlib &nbsp;·&nbsp; sorry-free<br>
+    axiom footprint <b>{propext, Classical.choice, Quot.sound}</b> — no extra axioms
+  </div>
+<pre>theorem floor_coupling_convergence_to_synchrony
+    (K : ℝ) (hK : 0 &lt; K) (N : ℕ) (hN : 2 ≤ N)
+    (W : Fin N → Fin N → ℝ) (hWsym : ∀ i j, W i j = W j i)
+    (w_min : ℝ) (hw : 0 &lt; w_min)
+    (hWfloor : ∀ i j, i ≠ j → w_min ≤ W i j)
+    (θ : ℝ → Fin N → ℝ)
+    (hsol : ∀ t, HasDerivAt θ (kuramotoVectorField K N W (θ t)) t)
+    (hsemi : ∀ a b : Fin N, |θ 0 a - θ 0 b| &lt; Real.pi) :
+    Filter.Tendsto (fun t =&gt; ‖kuramotoR N (θ t)‖) Filter.atTop (nhds 1)</pre>
+  <div class="frame">When the preconditions above hold, convergence of ‖R‖ to 1 is
+  <b>proven, not just observed</b> — the statement is checked by the Lean kernel, and this
+  page&rsquo;s panel mirrors those hypotheses one-for-one.</div>
+</div>
+
+<div class="panel scope">
+  <h2>What is proved — and what is not</h2>
+  <h3 class="yes">Proved</h3>
+  <p>The mathematics. For the exact ODE shown above, under the five hypotheses in the
+  panel, the order-parameter norm ‖R‖ tends to 1. Machine-checked in Lean 4
+  (<code>floor_coupling_convergence_to_synchrony</code>, kuramoto-lean, sorry-free, axiom
+  footprint <code>{propext, Classical.choice, Quot.sound}</code>).</p>
+  <h3 class="no">Not proved</h3>
+  <p><b>This page&rsquo;s numerics.</b> The browser integrator (RK4, finite Δt, floating
+  point) is a faithful numerical illustration of the theorem, not a machine-checked
+  simulation.<br>
+  <b>Real agent fleets.</b> This is a stylized model of multi-agent phase coordination —
+  not a claim that any deployed system is proven stable.<br>
+  <b>General coupling.</b> Sign-indefinite weights, coupling without a uniform positive
+  floor, and initial data outside an open semicircle are open problems — the theorem is
+  silent there.</p>
+</div>
+
+<footer>
+  The proof guarantees synchrony only under its hypotheses. Violate them and you&rsquo;re
+  on your own. &nbsp;·&nbsp; deterministic · offline · no backend &nbsp;·&nbsp;
+  flywheel-universe / kuramoto-lean
+</footer>
+
+<script>
+(() => {
+'use strict';
+
+/* ================= deterministic core ================= */
+
+const TAU = Math.PI * 2;
+const DT = 0.02;            // RK4 timestep (matches on-page disclosure)
+const SUBSTEPS = 3;         // sim steps per animation frame (fixed → deterministic)
+
+function mulberry32 (seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* Coupling matrix: symmetric, zero diagonal, off-diagonal u/N with u ∈ [0.5, 1]. */
+function genW (N, rng) {
+  const W = Array.from({ length: N }, () => new Array(N).fill(0));
+  for (let i = 0; i < N; i++) {
+    for (let j = i + 1; j < N; j++) {
+      const v = (0.5 + 0.5 * rng()) / N;
+      W[i][j] = v; W[j][i] = v;
+    }
+  }
+  return W;
+}
+
+/* Initial phases inside an open semicircle (diameter ≈ 0.8π < π): two flotillas
+   0.7π apart. With the floor intact the theorem forces them to merge; with the
+   floor cut they can freeze apart — same θ(0), only W differs between modes. */
+function genSemicirclePhases (N, rng) {
+  const centre = Math.PI / 2, off = 0.35 * Math.PI, jit = 0.05 * Math.PI;
+  return Array.from({ length: N }, (_, i) =>
+    centre + (i < N / 2 ? -off : off) + (rng() - 0.5) * 2 * jit);
+}
+
+/* Antipodal splay: half at 0, half at π. Initial diameter = π (not < π). */
+function genSplayPhases (N) {
+  return Array.from({ length: N }, (_, i) => (i < N / 2 ? 0 : Math.PI));
+}
+
+/* Theorem vector field: dθ_i/dt = K · Σ_j W_ij · sin(θ_j − θ_i). Nothing else. */
+function deriv (theta, W, K, N, out) {
+  for (let i = 0; i < N; i++) {
+    let s = 0;
+    const ti = theta[i];
+    for (let j = 0; j < N; j++) if (j !== i) s += W[i][j] * Math.sin(theta[j] - ti);
+    out[i] = K * s;
+  }
+}
+
+function rk4Step (theta, W, K, N, dt, k1, k2, k3, k4, tmp) {
+  deriv(theta, W, K, N, k1);
+  for (let i = 0; i < N; i++) tmp[i] = theta[i] + 0.5 * dt * k1[i];
+  deriv(tmp, W, K, N, k2);
+  for (let i = 0; i < N; i++) tmp[i] = theta[i] + 0.5 * dt * k2[i];
+  deriv(tmp, W, K, N, k3);
+  for (let i = 0; i < N; i++) tmp[i] = theta[i] + dt * k3[i];
+  deriv(tmp, W, K, N, k4);
+  for (let i = 0; i < N; i++) {
+    theta[i] += (dt / 6) * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]);
+  }
+}
+
+/* Order parameter r·e^{iψ} = (1/N)·Σ e^{iθ_j} — same formula as kuramotoR. */
+function orderParameter (theta, N) {
+  let cx = 0, cy = 0;
+  for (let i = 0; i < N; i++) { cx += Math.cos(theta[i]); cy += Math.sin(theta[i]); }
+  return { r: Math.sqrt(cx * cx + cy * cy) / N, phase: Math.atan2(cy, cx) };
+}
+
+/* ---- hypothesis checks: computed from live state, never from a flag ---- */
+function checkSymmetric (W, N) {
+  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) if (W[i][j] !== W[j][i]) return false;
+  return true;
+}
+function minOffDiag (W, N) {
+  let m = Infinity;
+  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) if (i !== j) m = Math.min(m, W[i][j]);
+  return m;
+}
+function initialDiameter (theta0, N) {  // hypothesis is about θ(0) as reals
+  let lo = Infinity, hi = -Infinity;
+  for (let i = 0; i < N; i++) { lo = Math.min(lo, theta0[i]); hi = Math.max(hi, theta0[i]); }
+  return hi - lo;
+}
+
+/* Simulation instance: pure function of (seed, N, K, mode). */
+function makeSim (seed, N, K, mode) {
+  const rng = mulberry32(seed);
+  const W = genW(N, rng);
+  let theta;
+  if (mode === 'splay') {
+    genSemicirclePhases(N, rng);          // burn same rng draws → W identical across modes
+    theta = genSplayPhases(N);
+  } else {
+    theta = genSemicirclePhases(N, rng);
+  }
+  if (mode === 'cut') {
+    const h = Math.floor(N / 2);
+    for (let i = 0; i < h; i++) for (let j = h; j < N; j++) { W[i][j] = 0; W[j][i] = 0; }
+  }
+  const sim = {
+    N, K, W, theta, t: 0,
+    theta0: theta.slice(),
+    D0: initialDiameter(theta, N),
+    k1: new Array(N), k2: new Array(N), k3: new Array(N), k4: new Array(N), tmp: new Array(N),
+    step () { rk4Step(this.theta, this.W, this.K, this.N, DT, this.k1, this.k2, this.k3, this.k4, this.tmp); this.t += DT; },
+  };
+  return sim;
+}
+
+/* ================= UI state ================= */
+
+let seed = 42, N = 16, K = 1.0, mode = 'proven';   // mode: proven | cut | splay
+let sim, history, paused = false;
+
+const $ = (id) => document.getElementById(id);
+const canvas = $('c'), ctx = canvas.getContext('2d');
+const chart = $('chart'), cctx = chart.getContext('2d');
+const wgrid = $('wgrid'), wctx = wgrid.getContext('2d');
+
+const CW = 720, CH = 500, CX = 260, CY = 250, RING_R = 190;
+
+for (const [cv, w, h] of [[canvas, CW, CH], [chart, 720, 150], [wgrid, 96, 96]]) {
+  const d = window.devicePixelRatio || 1;
+  cv.width = w * d; cv.height = h * d;
+  cv.getContext('2d').scale(d, d);
+}
+
+function init () {
+  sim = makeSim(seed, N, K, mode);
+  history = [];
+  drawWGrid();
+  renderPrecond();
+}
+
+/* ================= hypothesis panel ================= */
+
+function hypotheses () {
+  const wmin = minOffDiag(sim.W, sim.N);
+  return [
+    { hyp: 'K > 0', val: `K = ${sim.K.toFixed(1)}`, ok: sim.K > 0 },
+    { hyp: 'N ≥ 2', val: `N = ${sim.N}`, ok: sim.N >= 2 },
+    { hyp: 'W symmetric  (Wᵢⱼ = Wⱼᵢ)', val: 'checked on the live matrix', ok: checkSymmetric(sim.W, sim.N) },
+    { hyp: '∃ w_min > 0 :  Wᵢⱼ ≥ w_min  (i≠j)', val: `min Wᵢⱼ = ${wmin.toFixed(4)}`, ok: wmin > 0 },
+    { hyp: 'initial phases in an open semicircle', val: `diameter θ(0) = ${sim.D0.toFixed(3)}  (π ≈ 3.142)`, ok: sim.D0 < Math.PI },
+  ];
+}
+
+function renderPrecond () {
+  const hs = hypotheses();
+  $('precond').innerHTML = hs.map(h =>
+    `<div class="prow"><span class="hyp">${h.hyp}</span>` +
+    `<span class="val">${h.val}<span class="pill ${h.ok ? 'ok' : 'bad'}">${h.ok ? 'holds' : 'violated'}</span></span></div>`
+  ).join('');
+  const all = hs.every(h => h.ok);
+  const v = $('verdict');
+  v.className = 'verdict ' + (all ? 'ok' : 'bad');
+  $('verdictHead').textContent = all ? 'theorem applies' : 'theorem does not apply';
+  $('verdictBody').innerHTML = all
+    ? 'All five hypotheses hold → <b>‖R‖ → 1 is a machine-checked theorem</b> ' +
+      '(<span style="font-family:var(--mono);font-size:12px">floor_coupling_convergence_to_synchrony</span>). ' +
+      'Proven, not just observed.'
+    : 'A hypothesis is violated → the theorem <b>does not apply</b>. No guarantee — ' +
+      'you&rsquo;re on your own. (Failure is not forced; the proof is simply silent.)';
+  $('hudMode').textContent = all ? 'HYPOTHESES HOLD' : 'HYPOTHESIS VIOLATED';
+  $('hudMode').style.color = all ? 'var(--green)' : 'var(--red)';
+  $('noteCut').className = 'panel modenote' + (mode === 'cut' ? ' show' : '');
+  $('noteSplay').className = 'panel modenote' + (mode === 'splay' ? ' show' : '');
+}
+
+/* ================= drawing ================= */
+
+function nodeColor (i) {
+  return i < Math.floor(sim.N / 2) ? '#f0c84a' : '#4a9eff';
+}
+
+function draw () {
+  ctx.clearRect(0, 0, CW, CH);
+  // ring
+  ctx.beginPath(); ctx.arc(CX, CY, RING_R, 0, TAU);
+  ctx.strokeStyle = '#23233a'; ctx.lineWidth = 1.5; ctx.stroke();
+  // semicircle guide (initial condition region) faint
+  // mean-field arrow
+  const { r, phase } = orderParameter(sim.theta, sim.N);
+  ctx.beginPath();
+  ctx.moveTo(CX, CY);
+  ctx.lineTo(CX + r * RING_R * Math.cos(phase), CY + r * RING_R * Math.sin(phase));
+  ctx.strokeStyle = '#d4af37'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.stroke();
+  ctx.beginPath(); ctx.arc(CX, CY, 4, 0, TAU); ctx.fillStyle = '#d4af37'; ctx.fill();
+  // oscillators
+  for (let i = 0; i < sim.N; i++) {
+    const x = CX + RING_R * Math.cos(sim.theta[i]);
+    const y = CY + RING_R * Math.sin(sim.theta[i]);
+    ctx.beginPath(); ctx.arc(x, y, 9, 0, TAU);
+    ctx.fillStyle = nodeColor(i); ctx.globalAlpha = 0.92; ctx.fill(); ctx.globalAlpha = 1;
+    ctx.strokeStyle = '#07070d'; ctx.lineWidth = 2; ctx.stroke();
+  }
+  // legend bottom right (clear of the HUD badges)
+  ctx.font = '11px ui-monospace, Menlo, monospace';
+  ctx.fillStyle = '#6a6a78';
+  ctx.fillText('each dot = one agent, angle = its phase', 460, 444);
+  ctx.fillText('gold arrow = mean field R', 460, 462);
+  ctx.fillText('‖R‖ = 1 ⇔ full consensus', 460, 480);
+}
+
+function drawChart () {
+  cctx.clearRect(0, 0, 720, 150);
+  cctx.fillStyle = '#11111a'; cctx.fillRect(0, 0, 720, 150);
+  // axes: y 0..1 → 135..12
+  const y = (v) => 135 - v * 123;
+  cctx.strokeStyle = '#23233a'; cctx.lineWidth = 1;
+  cctx.beginPath(); cctx.moveTo(40, y(0)); cctx.lineTo(710, y(0)); cctx.stroke();
+  cctx.setLineDash([4, 4]);
+  cctx.beginPath(); cctx.moveTo(40, y(1)); cctx.lineTo(710, y(1));
+  cctx.strokeStyle = '#4ade80'; cctx.stroke();
+  cctx.setLineDash([]);
+  cctx.font = '10px ui-monospace, Menlo, monospace';
+  cctx.fillStyle = '#6a6a78';
+  cctx.fillText('1.0', 16, y(1) + 3); cctx.fillText('0.0', 16, y(0) + 3);
+  cctx.fillText('‖R(t)‖ — order-parameter norm (the quantity the theorem bounds)', 40, 10);
+  if (history.length > 1) {
+    cctx.beginPath();
+    const n = history.length, x0 = 40, x1 = 710;
+    for (let i = 0; i < n; i++) {
+      const x = x0 + (x1 - x0) * (i / Math.max(1, n - 1));
+      if (i === 0) cctx.moveTo(x, y(history[i])); else cctx.lineTo(x, y(history[i]));
+    }
+    cctx.strokeStyle = '#d4af37'; cctx.lineWidth = 2; cctx.stroke();
+  }
+}
+
+function drawWGrid () {
+  const n = sim.N, cell = 96 / n;
+  wctx.clearRect(0, 0, 96, 96);
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    const v = sim.W[i][j] * n;      // rescale u/N → u for display
+    wctx.fillStyle = v <= 0 ? '#0a0a12' : `rgba(212,175,55,${0.25 + 0.75 * Math.min(1, v)})`;
+    wctx.fillRect(j * cell, i * cell, cell - 0.5, cell - 0.5);
+  }
+}
+
+function updateHud () {
+  const { r } = orderParameter(sim.theta, sim.N);
+  $('hudR').textContent = r.toFixed(3);
+  $('hudT').textContent = sim.t.toFixed(1);
+}
+
+/* ================= main loop ================= */
+
+function frame () {
+  if (!paused) {
+    for (let s = 0; s < SUBSTEPS; s++) sim.step();
+    history.push(orderParameter(sim.theta, sim.N).r);
+    if (history.length > 2400) history.shift();
+  }
+  draw(); drawChart(); updateHud();
+  requestAnimationFrame(frame);
+}
+
+/* ================= events ================= */
+
+$('pauseBtn').addEventListener('click', () => {
+  paused = !paused;
+  $('pauseBtn').textContent = paused ? 'Run' : 'Pause';
+});
+$('resetBtn').addEventListener('click', () => init());
+$('seed').addEventListener('change', () => { seed = ($('seed').value | 0) || 42; init(); });
+document.querySelectorAll('button.seg[data-n]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('button.seg[data-n]').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  N = +b.dataset.n; init();
+}));
+$('kslider').addEventListener('input', () => {
+  K = +$('kslider').value; $('kval').textContent = K.toFixed(1); init();
+});
+$('cutBtn').addEventListener('click', () => { mode = 'cut'; init(); });
+$('splayBtn').addEventListener('click', () => { mode = 'splay'; init(); });
+$('restoreBtn').addEventListener('click', () => { mode = 'proven'; init(); });
+document.addEventListener('keydown', (e) => {
+  if (e.key === ' ') { e.preventDefault(); $('pauseBtn').click(); }
+  if (e.key === 'r') $('resetBtn').click();
+});
+
+/* ================= boot-time self-checks (console, non-fatal) ================= */
+
+function runToTime (s, T) { while (s.t < T) s.step(); return orderParameter(s.theta, s.N).r; }
+(function selfCheck () {
+  const t0 = performance.now();
+  // determinism: identical seeds → identical state
+  const a = makeSim(42, 16, 1.0, 'proven'), b = makeSim(42, 16, 1.0, 'proven');
+  for (let i = 0; i < 500; i++) { a.step(); b.step(); }
+  const det = a.theta.every((v, i) => v === b.theta[i]);
+  // proven path: R(40) ≈ 1
+  const rOk = runToTime(makeSim(42, 16, 1.0, 'proven'), 40);
+  // floor cut: R(40) visibly below 1 (seed-locked witness)
+  const rCut = runToTime(makeSim(42, 16, 1.0, 'cut'), 40);
+  // splay: stationary within the run window
+  const rSplay = runToTime(makeSim(42, 16, 1.0, 'splay'), 40);
+  console.assert(det, 'determinism check failed');
+  console.assert(rOk > 0.999, `proven-path check failed: R(40) = ${rOk}`);
+  console.assert(rCut < 0.6, `cut-path check failed: R(40) = ${rCut} (islands did not stay separated)`);
+  console.assert(rSplay < 0.01, `splay-path check failed: R(40) = ${rSplay}`);
+  const pass = det && rOk > 0.999 && rCut < 0.6 && rSplay < 0.01;
+  const msg = `[self-check] ${pass ? 'PASS' : 'FAIL'} determinism=${det} ` +
+    `R_proven(40)=${rOk.toFixed(6)} R_cut(40)=${rCut.toFixed(4)} ` +
+    `R_splay(40)=${rSplay.toExponential(2)} (${(performance.now() - t0).toFixed(0)}ms)`;
+  console.log(msg);
+  const el = document.createElement('div');
+  el.id = 'selfcheck'; el.textContent = msg;
+  el.style.cssText = 'font-family:var(--mono);font-size:10px;color:var(--ink-3);margin-top:8px';
+  document.querySelector('footer').appendChild(el);
+})();
+
+/* ================= boot ================= */
+init();
+frame();
+
+})();
+</script>
+</body>
+</html>

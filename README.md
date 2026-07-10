@@ -1,10 +1,11 @@
 # Hybrid Adaptive Calibration under Bounded Oscillator Coupling Budgets
 
 [![Live demo](https://img.shields.io/badge/demo-live-d4af37?style=flat-square&logo=github)](https://velvetmonkey.github.io/flywheel-universe/)
+[![Coordination kernel](https://img.shields.io/badge/demo-coordination_kernel-4a7fd4?style=flat-square&logo=github)](https://velvetmonkey.github.io/flywheel-universe/coordination-kernel.html)
 
 The algebraic core of the descent argument has been machine-verified in Lean 4 / Mathlib ([lean/RequestProject/LyapunovDescent.lean](lean/RequestProject/LyapunovDescent.lean)). The formalization establishes convexity and closedness of the constraint set, the key symmetry-based phase contribution identity, and the descent conclusion under explicit hypotheses on the dL/dt decomposition and the projection's variational inequality. Closing the remaining gaps (weight dynamics, chain-rule derivation, projection existence, full KKT stationarity) is the next formalisation step — see open issues.
 
-The formal foundations have been extended and published as a separate sorry-free library: kuramoto-lean (Ben Cassie, 2026), available at https://github.com/velvetmonkey/kuramoto-lean, with a companion paper at https://doi.org/10.5281/zenodo.20468619. That library proves the unprojected algebraic joint descent core in `hebbian_joint_lyapunov_descent` with zero sorry, zero admit, and no new axioms.
+The formal foundations have been extended and published as a separate sorry-free library: kuramoto-lean (Ben Cassie, 2026), available at https://github.com/velvetmonkey/kuramoto-lean, with a companion paper at https://doi.org/10.5281/zenodo.20468618. That library proves the unprojected algebraic joint descent core in `hebbian_joint_lyapunov_descent` with zero sorry, zero admit, and no new axioms.
 
 ## 1. What this is
 
@@ -62,6 +63,14 @@ python phase2_benchmark.py pilot
 A network of Kuramoto oscillators synchronises via Hebbian learning. Five topologies (fully connected, ring, sparse random, hub-spoke, island chain), speed and node-count controls, senescence and learning toggles, and a perturbation slider to find the basin boundary.
 
 Source: [`demos/hebbian-kuramoto.html`](demos/hebbian-kuramoto.html) (also runs standalone in any browser).
+
+### Coordination Kernel (proof-linked)
+
+**Live:** <https://velvetmonkey.github.io/flywheel-universe/coordination-kernel.html> — deterministic, offline, self-contained.
+
+A companion demo whose integrator runs *exactly* the theorem's vector field (dθ/dt = K·Σ Wᵢⱼ·sin(θⱼ − θᵢ), no detuning, noise, normalisation, or mean-field pull). Every precondition is checked live against runtime state, and two counterfactuals ("cut the floor", "start outside the semicircle") show what happens when a hypothesis of `floor_coupling_convergence_to_synchrony` ([kuramoto-lean](https://github.com/velvetmonkey/kuramoto-lean)) is broken. It is a faithful numerical illustration of the machine-checked theorem, not a verified simulation.
+
+Source: [`demos/coordination-kernel.html`](demos/coordination-kernel.html).
 
 ---
 

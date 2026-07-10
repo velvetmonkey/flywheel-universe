@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - 'demos/hebbian-kuramoto.html'
+      - 'demos/coordination-kernel.html'
 permissions:
   contents: write
 jobs:
@@ -12,6 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: cp demos/hebbian-kuramoto.html docs/index.html
+      - run: cp demos/coordination-kernel.html docs/coordination-kernel.html
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "docs: sync demo from demos/hebbian-kuramoto.html"
+          commit_message: "docs: sync demos to docs/ (hebbian index + coordination kernel)"

@@ -15,7 +15,7 @@ This repository studies budgeted Hebbian Kuramoto dynamics with a fixed sparsity
 
 **Budgeted Hebbian Kuramoto Dynamics for Max-Cut under Amplitude Heterogeneity: Robustness, Not Cut Quality, Is the Signal**
 Ben Cassie (2026). Zenodo.
-https://zenodo.org/records/20303914
+https://doi.org/10.5281/zenodo.20469680
 
 ## 2. The theorem (informal)
 
